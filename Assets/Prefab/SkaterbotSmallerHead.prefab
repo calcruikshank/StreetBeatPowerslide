@@ -2118,16 +2118,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bufferTimerThreshold: 0.2
-  acceleration: 10
-  maxSpeed: 15
-  turnSpeed: 60
-  driftTurnMultiplier: 1.5
-  jumpForce: 5
-  boardAnimator: {fileID: 0}
-  grounded: 1
+  acceleration: 20
+  maxSpeed: 30
+  turnSpeed: 150
+  friction: 0.5
+  brakeForce: 15
   state: 0
-  shiftPressed: 0
-  spacePressed: 0
 --- !u!54 &5605830709446707197
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2136,7 +2132,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7010648667369827308}
   serializedVersion: 4
-  m_Mass: 10
+  m_Mass: 1
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -2153,7 +2149,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!65 &1634094437860901356
 BoxCollider:
@@ -2162,7 +2158,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7010648667369827308}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 90fe328d132ac9a48b114c61852a1fa9, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

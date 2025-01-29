@@ -7,6 +7,8 @@ public class PowerSlideData : MonoBehaviour
         DRIFT,
         DASH,
         BOOST,
-        TRICK
+        TRICK,
+        ACCELERATE,
+        BRAKE
     }
 }
