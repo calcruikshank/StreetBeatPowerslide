@@ -11,12 +11,14 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float acceleration = 50f;
     [SerializeField] private float maxSpeed = 20f;
     [SerializeField] private float turnSpeed = 100f;
-    [SerializeField] private float friction = 0.5f;  // Lowered for slower deceleration
+    [SerializeField] private float friction = 0.5f;
     [SerializeField] private float brakeForce = 80f;
 
     private Rigidbody rb;
     private Vector2 inputMovement;
     private Queue<BufferInput> inputQueue = new Queue<BufferInput>();
+
+    private bool isAccelerating = false; // Track if acceleration is active
 
     public enum State { Normal, Braking }
     public State state = State.Normal;
@@ -24,12 +26,20 @@ public class SkaterBotController : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        rb.linearDamping = 0f;         // No artificial slow-down
-        rb.angularDamping = 1f;  // Keeps turning smooth
-        rb.useGravity = true; // Ensure falling is not affected
+        rb.linearDamping = 0f;
+        rb.angularDamping = 1f;
+        rb.useGravity = true;
     }
 
-    private void Update() { HandleBufferInput(); }
+    private void Start()
+    {
+        GameManager.instance.skaterBotCamera.FindPlayer(this);
+    }
+
+    private void Update()
+    {
+        HandleBufferInput();
+    }
 
     private void FixedUpdate()
     {
@@ -71,16 +81,16 @@ public class SkaterBotController : MonoBehaviour
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
         rb.linearVelocity = new Vector3(forwardVelocity.x, currentVelocity.y, forwardVelocity.z); // Preserve gravity
 
-        // Apply acceleration only if moving forward
-        if (inputMovement.y > 0)
+        // Apply acceleration ONLY if right trigger (Attack) is held down
+        if (isAccelerating)
         {
-            rb.AddForce(forwardDirection * (acceleration * inputMovement.y), ForceMode.Acceleration);
+            rb.AddForce(forwardDirection * acceleration, ForceMode.Acceleration);
         }
 
-        // Natural deceleration (very slow to avoid rapid stops)
-        if (inputMovement.y <= 0 && forwardVelocity.magnitude > 0.1f)
+        // Stop automatic deceleration when Attack is released
+        if (!isAccelerating)
         {
-            rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, new Vector3(0, rb.linearVelocity.y, 0), friction * Time.fixedDeltaTime);
+            rb.linearVelocity = forwardVelocity; // Maintain speed instead of slowing down
         }
 
         // Clamp speed but preserve falling speed
@@ -106,17 +116,30 @@ public class SkaterBotController : MonoBehaviour
 
     private void OnMove(InputValue value)
     {
+        Debug.Log("Moving: " + value);
         inputMovement = value.Get<Vector2>();
+    }
+
+    // ??? **Right Trigger (Attack) ONLY Accelerates While Held**
+    private void OnAttack(InputValue value)
+    {
+        isAccelerating = value.Get<float>() > 0.1f; // Only accelerates while trigger is held
+        Debug.Log(isAccelerating ? "Accelerating!" : "Stopped Accelerating");
+    }
+
+    // ??? **Stops Deceleration on Attack Release**
+    private void OnAttackReleased(InputValue value)
+    {
+        isAccelerating = false;
     }
 
     private void OnBrake()
     {
         inputQueue.Enqueue(new BufferInput(PowerSlideData.InputActionType.BRAKE, inputMovement, Time.time));
     }
+
     public float GetTurnInput()
     {
-        return inputMovement.x; // Return left/right movement (-1 to 1)
+        return inputMovement.x;
     }
-
 }
-

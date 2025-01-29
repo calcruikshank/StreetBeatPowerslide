@@ -3,54 +3,44 @@
 public class SkaterBotCamera : MonoBehaviour
 {
     [Header("Camera Settings")]
-    [SerializeField] private Vector3 offset = new Vector3(0, 5, -10); // Default position behind player
+    [SerializeField] private Vector3 baseOffset = new Vector3(0, 5, -10); // Default position behind player
     [SerializeField] private float followSpeed = 5f;  // How fast the camera moves
-    [SerializeField] private float zoomOutFactor = 0.2f; // Camera zoom-out multiplier
-    [SerializeField] private float maxZoomOut = 15f; // Max distance camera zooms out
-    [SerializeField] private float minZoomOut = 8f;  // Min zoom (when stopped)
-    [SerializeField] private float lookAheadFactor = 3f; // How far the camera looks ahead when turning
-    [SerializeField] private bool rotateWithPlayer = true; // Set false if you don’t want rotation
+    [SerializeField] private float zoomOutFactor = 0.1f; // Small zoom-out multiplier
+    [SerializeField] private float maxZoomOut = 12f; // Slight zoom-out distance
+    [SerializeField] private float minZoomOut = 10f; // Default zoom distance
+    [SerializeField] private float smoothTime = 0.2f; // Smoothing time for camera movement
 
     private Transform player;
     private Rigidbody playerRb;
-    [SerializeField] private SkaterBotController playerInput;
-
-    private void Start()
-    {
-        FindPlayer(); // Try to find the SkaterBot at start
-    }
+    private Vector3 velocity = Vector3.zero; // Used for SmoothDamp
 
     private void LateUpdate()
     {
-        if (player == null || playerRb == null || playerInput == null) return;
+        if (player == null || playerRb == null) return;
 
-        // Get player's speed
-        float playerSpeed = playerRb.linearVelocity.magnitude;
+        // Get player's velocity
+        Vector3 playerVelocity = playerRb.velocity;
+        float forwardSpeed = Vector3.Dot(playerVelocity, player.forward); // Forward velocity component
 
-        // Calculate dynamic zoom based on speed
-        float zoomAmount = Mathf.Lerp(minZoomOut, maxZoomOut, playerSpeed * zoomOutFactor);
+        // Only zoom out slightly if moving forward
+        float zoomAmount = Mathf.Lerp(minZoomOut, maxZoomOut, Mathf.Clamp01(forwardSpeed * zoomOutFactor));
 
-        // Calculate look-ahead based on player input (turning)
-        Vector3 lookAheadOffset = player.transform.right * (playerInput.GetTurnInput() * lookAheadFactor);
+        // Calculate new offset with zoom
+        Vector3 dynamicOffset = baseOffset.normalized * zoomAmount;
 
-        // Target camera position: behind player + dynamic zoom + look ahead
-        Vector3 targetPosition = player.position + player.transform.rotation * (offset.normalized * zoomAmount) + lookAheadOffset;
+        // Target camera position behind the player
+        Vector3 targetPosition = player.position + player.rotation * dynamicOffset;
 
-        // Smoothly move camera to the target position
-        transform.position = Vector3.Lerp(transform.position, targetPosition, followSpeed * Time.deltaTime);
+        // Use SmoothDamp for smoother movement
+        transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
 
-        // Rotate with player if enabled
-        if (rotateWithPlayer)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(player.position - transform.position);
-            transform.rotation = targetRotation;
-        }
+        // Keep camera facing the player
+        transform.LookAt(player.position);
     }
 
-    // 🔥 Automatically finds and assigns the player when it spawns
-    public void FindPlayer()
+    public void FindPlayer(SkaterBotController skaterBot)
     {
-        player = playerInput.transform;
-        playerRb = playerInput.GetComponent<Rigidbody>();
+        player = skaterBot.transform;
+        playerRb = skaterBot.GetComponent<Rigidbody>();
     }
 }
