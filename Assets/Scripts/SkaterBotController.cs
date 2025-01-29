@@ -136,6 +136,15 @@ public class SkaterBotController : MonoBehaviour
             float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f);
             pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
             pivotPoint.localEulerAngles = new Vector3(pivotPoint.localEulerAngles.x, pivotPoint.localEulerAngles.y, pivotTiltZ);
+            float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 0, driftTiltSpeed * Time.deltaTime);
+            pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+        }
+
+        // Smoothly transition **drift tilt** (drifting effect)
+        if (isDrifting)
+        {
+            float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, driftTiltZ, driftTiltSpeed * Time.deltaTime);
+            pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
         }
     }
 
@@ -150,35 +159,38 @@ public class SkaterBotController : MonoBehaviour
     }
     private float driftDirection = 0f; // -1 for left, 1 for right
 
+    private float driftTiltZ = 0f;
+    private float driftTiltSpeed = 1500f; // Speed of tilt transition
+
     private void StartDrifting()
     {
-        float targetZRotation = 0; // Converts range [-1,1] to [-10,10]
-        pivotTiltZ = 0;
+        // Reset normal tilt
+        pivotTiltZ = 0f;
+
         // Apply tilt to pivot point
         Vector3 currentRotation = pivotPoint.localEulerAngles;
         pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
-        // Determine initial drift direction
+
+        // Determine drift direction
         driftDirection = Mathf.Sign(inputMovement.x);
         if (driftDirection == 0) driftDirection = 1f; // Default to right if no input
 
         isDrifting = true;
         state = State.Drifting;
 
-        // Rotate pivot for visual effect
-        float driftAngle = driftDirection > 0 ? 50f : -50f;
-        pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, driftAngle, pivotPointDrift.localEulerAngles.z);
+        // Set target drift angle
+        driftTiltZ = driftDirection > 0 ? 50f : -50f;
 
         Debug.Log("Drifting!");
     }
-
 
     private void StopDrifting()
     {
         isDrifting = false;
         state = State.Normal;
 
-        // Reset pivot rotation
-        pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, 0, pivotPointDrift.localEulerAngles.z);
+        // Reset target drift angle
+        driftTiltZ = 0f;
 
         Debug.Log("Stopped Drifting!");
     }
