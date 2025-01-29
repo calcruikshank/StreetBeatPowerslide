@@ -112,23 +112,19 @@ public class SkaterBotController : MonoBehaviour
             rb.linearVelocity = horizontalVelocity.normalized * maxSpeed + Vector3.up * rb.linearVelocity.y;
         }
 
-        // Turning logic
-        if (Mathf.Abs(inputMovement.x) > 0.01f)
+        float turnAmount = inputMovement.x * currentTurnSpeed * Time.fixedDeltaTime;
+
+        if (isDrifting)
         {
-            float turnAmount = inputMovement.x * currentTurnSpeed * Time.fixedDeltaTime;
-
-            if (isDrifting)
-            {
-                // **Fix: Only invert turning when drifting to the right**
-                float driftTurnInput = (driftDirection <= 0) ? -inputMovement.x : inputMovement.x;
-
-                // Clamp turn input to only allow turning in the drift's original direction
-                float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
-                turnAmount = clampedTurn * currentTurnSpeed * Time.fixedDeltaTime;
-            }
-
-            transform.Rotate(0, turnAmount, 0);
+            // **Fix: Only invert turning when drifting to the right**
+            float driftTurnInput = (driftDirection <= 0) ? -inputMovement.x : inputMovement.x;
+            Debug.Log(inputMovement.x + "inputmovement ");
+            // Clamp turn input to only allow turning in the drift's original direction
+            float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
+            turnAmount = clampedTurn * currentTurnSpeed * Time.fixedDeltaTime;
         }
+
+        transform.Rotate(0, turnAmount, 0);
 
         if (!isDrifting)
         {

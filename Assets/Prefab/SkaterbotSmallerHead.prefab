@@ -2236,10 +2236,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bufferTimerThreshold: 0.2
-  acceleration: 20
-  maxSpeed: 30
-  turnSpeed: 150
-  driftTurnSpeed: 200
+  acceleration: 17
+  maxSpeed: 22
+  turnSpeed: 120
+  driftTurnSpeed: 180
   friction: 0.5
   brakeForce: 15
   pivotPointDrift: {fileID: 4254989758157830507}
