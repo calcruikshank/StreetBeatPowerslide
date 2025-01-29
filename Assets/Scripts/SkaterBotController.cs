@@ -23,6 +23,8 @@ public class SkaterBotController : MonoBehaviour
     public enum State { Normal, Braking }
     public State state = State.Normal;
 
+    [SerializeField] Transform pivotPoint;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -72,6 +74,10 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
+    private float pivotTiltZ = 0f; // Stores the current tilt value
+    [SerializeField] private float tiltSpeed = 5f; // Speed of tilt transition
+    [SerializeField] private float maxTiltAngle = 10f; // Maximum tilt angle on the Z-axis
+
     private void HandleMovement()
     {
         Vector3 forwardDirection = transform.forward;
@@ -79,7 +85,7 @@ public class SkaterBotController : MonoBehaviour
 
         // Remove sideways movement (keep only forward direction)
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
-        rb.linearVelocity = new Vector3(forwardVelocity.x, currentVelocity.y, forwardVelocity.z); // Preserve gravity
+        rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z); // Preserve gravity
 
         // Apply acceleration ONLY if right trigger (Attack) is held down
         if (isAccelerating)
@@ -90,11 +96,11 @@ public class SkaterBotController : MonoBehaviour
         // Stop automatic deceleration when Attack is released
         if (!isAccelerating)
         {
-            rb.linearVelocity = forwardVelocity; // Maintain speed instead of slowing down
+            rb.linearVelocity = new Vector3( forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z ); // Maintain speed instead of slowing down
         }
 
         // Clamp speed but preserve falling speed
-        Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
+        Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, rb.linearVelocity.z);
         if (horizontalVelocity.magnitude > maxSpeed)
         {
             rb.linearVelocity = horizontalVelocity.normalized * maxSpeed + Vector3.up * rb.linearVelocity.y;
@@ -106,7 +112,19 @@ public class SkaterBotController : MonoBehaviour
             float turnAmount = inputMovement.x * turnSpeed * Time.fixedDeltaTime;
             transform.Rotate(0, turnAmount, 0);
         }
+
+        // *** SMOOTHLY ROTATE PIVOT BASED ON INPUT ***
+        float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f); // Converts range [-1,1] to [-10,10]
+
+        // Move towards the target rotation smoothly
+        pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
+
+        // Apply tilt to pivot point
+        Vector3 currentRotation = pivotPoint.localEulerAngles;
+        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
     }
+
+
 
     private void HandleBraking()
     {

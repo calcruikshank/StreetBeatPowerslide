@@ -92,7 +92,7 @@
                     "id": "eb7d7b2d-c574-4b33-9958-09d0271727ad",
                     "expectedControlType": "",
                     "processors": "",
-                    "interactions": "",
+                    "interactions": "Press(behavior=1)",
                     "initialStateCheck": false
                 }
             ],
@@ -266,7 +266,7 @@
                     "name": "",
                     "id": "05f6913d-c316-48b2-a6bb-e225f14c7960",
                     "path": "<Mouse>/leftButton",
-                    "interactions": "",
+                    "interactions": "Press",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "Attack",
@@ -489,6 +489,17 @@
                     "interactions": "Press(behavior=1)",
                     "processors": "",
                     "groups": ";Gamepad",
+                    "action": "AttackReleased",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "6153385c-1c9d-484c-ab82-b9fcd6d4be81",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
                     "action": "AttackReleased",
                     "isComposite": false,
                     "isPartOfComposite": false

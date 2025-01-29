@@ -19,7 +19,7 @@ public class SkaterBotCamera : MonoBehaviour
         if (player == null || playerRb == null) return;
 
         // Get player's velocity
-        Vector3 playerVelocity = playerRb.velocity;
+        Vector3 playerVelocity = playerRb.linearVelocity;
         float forwardSpeed = Vector3.Dot(playerVelocity, player.forward); // Forward velocity component
 
         // Only zoom out slightly if moving forward
