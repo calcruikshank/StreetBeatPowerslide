@@ -269,12 +269,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da44b70d61f39424cb33ffd2d5edfd79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseOffset: {x: 0, y: 4, z: -8}
+  baseOffset: {x: 0, y: 7, z: -18}
   followSpeed: 7
   zoomOutFactor: 0.05
   maxZoomOut: 4.5
-  minZoomOut: 4
-  smoothTime: 0.2
+  minZoomOut: 4.4
+  smoothTime: 0.1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
