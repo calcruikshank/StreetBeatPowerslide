@@ -11,6 +11,7 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float acceleration = 50f;
     [SerializeField] private float maxSpeed = 20f;
     [SerializeField] private float turnSpeed = 100f;
+    [SerializeField] private float driftTurnSpeed = 200f; // Increased turn speed during drift
     [SerializeField] private float friction = 0.5f;
     [SerializeField] private float brakeForce = 80f;
 
@@ -18,9 +19,12 @@ public class SkaterBotController : MonoBehaviour
     private Vector2 inputMovement;
     private Queue<BufferInput> inputQueue = new Queue<BufferInput>();
 
-    private bool isAccelerating = false; // Track if acceleration is active
+    [SerializeField] Transform pivotPointDrift;
 
-    public enum State { Normal, Braking }
+    private bool isAccelerating = false; // Track if acceleration is active
+    private bool isDrifting = false; // Track if the player is drifting
+
+    public enum State { Normal, Braking, Drifting }
     public State state = State.Normal;
 
     [SerializeField] Transform pivotPoint;
@@ -48,10 +52,13 @@ public class SkaterBotController : MonoBehaviour
         switch (state)
         {
             case State.Normal:
-                HandleMovement();
+                HandleMovement(turnSpeed);
                 break;
             case State.Braking:
                 HandleBraking();
+                break;
+            case State.Drifting:
+                HandleMovement(driftTurnSpeed);
                 break;
         }
     }
@@ -67,6 +74,11 @@ public class SkaterBotController : MonoBehaviour
                 state = State.Braking;
                 inputQueue.Dequeue();
             }
+            else if (currentInput.actionType == PowerSlideData.InputActionType.DRIFT)
+            {
+                StartDrifting();
+                inputQueue.Dequeue();
+            }
         }
         else
         {
@@ -78,7 +90,7 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float tiltSpeed = 5f; // Speed of tilt transition
     [SerializeField] private float maxTiltAngle = 10f; // Maximum tilt angle on the Z-axis
 
-    private void HandleMovement()
+    private void HandleMovement(float currentTurnSpeed)
     {
         Vector3 forwardDirection = transform.forward;
         Vector3 currentVelocity = rb.linearVelocity;
@@ -87,16 +99,10 @@ public class SkaterBotController : MonoBehaviour
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
         rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z); // Preserve gravity
 
-        // Apply acceleration ONLY if right trigger (Attack) is held down
+        // Apply acceleration
         if (isAccelerating)
         {
             rb.AddForce(forwardDirection * acceleration, ForceMode.Acceleration);
-        }
-
-        // Stop automatic deceleration when Attack is released
-        if (!isAccelerating)
-        {
-            rb.linearVelocity = new Vector3( forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z ); // Maintain speed instead of slowing down
         }
 
         // Clamp speed but preserve falling speed
@@ -106,23 +112,34 @@ public class SkaterBotController : MonoBehaviour
             rb.linearVelocity = horizontalVelocity.normalized * maxSpeed + Vector3.up * rb.linearVelocity.y;
         }
 
-        // Turning logic (rotate while keeping velocity)
+        // Turning logic
         if (Mathf.Abs(inputMovement.x) > 0.01f)
         {
-            float turnAmount = inputMovement.x * turnSpeed * Time.fixedDeltaTime;
+            float turnAmount = inputMovement.x * currentTurnSpeed * Time.fixedDeltaTime;
+
+            if (isDrifting)
+            {
+                // **Fix: Only invert turning when drifting to the right**
+                float driftTurnInput = (driftDirection <= 0) ? -inputMovement.x : inputMovement.x;
+
+                // Clamp turn input to only allow turning in the drift's original direction
+                float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
+                turnAmount = clampedTurn * currentTurnSpeed * Time.fixedDeltaTime;
+            }
+
             transform.Rotate(0, turnAmount, 0);
         }
 
-        // *** SMOOTHLY ROTATE PIVOT BASED ON INPUT ***
-        float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f); // Converts range [-1,1] to [-10,10]
-
-        // Move towards the target rotation smoothly
-        pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
-
-        // Apply tilt to pivot point
-        Vector3 currentRotation = pivotPoint.localEulerAngles;
-        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
+        if (!isDrifting)
+        {
+            // Smoothly rotate pivot based on input
+            float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f);
+            pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
+            pivotPoint.localEulerAngles = new Vector3(pivotPoint.localEulerAngles.x, pivotPoint.localEulerAngles.y, pivotTiltZ);
+        }
     }
+
+
 
 
 
@@ -131,6 +148,41 @@ public class SkaterBotController : MonoBehaviour
         rb.AddForce(-rb.linearVelocity.normalized * brakeForce, ForceMode.Acceleration);
         if (rb.linearVelocity.magnitude < 1f) state = State.Normal;
     }
+    private float driftDirection = 0f; // -1 for left, 1 for right
+
+    private void StartDrifting()
+    {
+        float targetZRotation = 0; // Converts range [-1,1] to [-10,10]
+        pivotTiltZ = 0;
+        // Apply tilt to pivot point
+        Vector3 currentRotation = pivotPoint.localEulerAngles;
+        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
+        // Determine initial drift direction
+        driftDirection = Mathf.Sign(inputMovement.x);
+        if (driftDirection == 0) driftDirection = 1f; // Default to right if no input
+
+        isDrifting = true;
+        state = State.Drifting;
+
+        // Rotate pivot for visual effect
+        float driftAngle = driftDirection > 0 ? 50f : -50f;
+        pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, driftAngle, pivotPointDrift.localEulerAngles.z);
+
+        Debug.Log("Drifting!");
+    }
+
+
+    private void StopDrifting()
+    {
+        isDrifting = false;
+        state = State.Normal;
+
+        // Reset pivot rotation
+        pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, 0, pivotPointDrift.localEulerAngles.z);
+
+        Debug.Log("Stopped Drifting!");
+    }
+
 
     private void OnMove(InputValue value)
     {
@@ -138,17 +190,25 @@ public class SkaterBotController : MonoBehaviour
         inputMovement = value.Get<Vector2>();
     }
 
-    // ??? **Right Trigger (Attack) ONLY Accelerates While Held**
     private void OnAttack(InputValue value)
     {
-        isAccelerating = value.Get<float>() > 0.1f; // Only accelerates while trigger is held
+        isAccelerating = value.Get<float>() > 0.1f;
         Debug.Log(isAccelerating ? "Accelerating!" : "Stopped Accelerating");
     }
 
-    // ??? **Stops Deceleration on Attack Release**
     private void OnAttackReleased(InputValue value)
     {
         isAccelerating = false;
+    }
+
+    private void OnJump(InputValue value)
+    {
+        inputQueue.Enqueue(new BufferInput(PowerSlideData.InputActionType.DRIFT, inputMovement, Time.time));
+    }
+
+    private void OnJumpReleased(InputValue value)
+    {
+        StopDrifting();
     }
 
     private void OnBrake()
