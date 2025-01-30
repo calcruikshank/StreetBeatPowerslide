@@ -68,7 +68,7 @@ public class SkaterBotController : MonoBehaviour
         {
             StartDrifting();
         }
-        if (!driftingPressed)
+        if (!driftingPressed && isDrifting)
         {
             StopDrifting();
         }
