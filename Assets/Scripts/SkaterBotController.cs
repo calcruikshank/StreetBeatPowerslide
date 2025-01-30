@@ -29,6 +29,8 @@ public class SkaterBotController : MonoBehaviour
 
     [SerializeField] Transform pivotPoint;
 
+    [SerializeField] List<TrailRenderer> driftTrails;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -178,6 +180,11 @@ public class SkaterBotController : MonoBehaviour
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
 
         Debug.Log("Drifting!");
+
+        foreach (TrailRenderer trail in driftTrails)
+        {
+            trail.emitting = true;
+        }
     }
 
     private void StopDrifting()
@@ -189,6 +196,10 @@ public class SkaterBotController : MonoBehaviour
         driftTiltZ = 0f;
 
         Debug.Log("Stopped Drifting!");
+        foreach (TrailRenderer trail in driftTrails)
+        {
+            trail.emitting = false;
+        }
     }
 
 

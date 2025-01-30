@@ -2249,6 +2249,11 @@ MonoBehaviour:
   pivotPointDrift: {fileID: 4254989758157830507}
   state: 0
   pivotPoint: {fileID: 7940614215625474929}
+  driftTrails:
+  - {fileID: 6122342839793700881}
+  - {fileID: 2532679702751269045}
+  - {fileID: 1685272663449187694}
+  - {fileID: 3923754132856623832}
   tiltSpeed: 100
   maxTiltAngle: 10
 --- !u!54 &5605830709446707197
@@ -2784,6 +2789,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2533592430137761145}
     m_Modifications:
+    - target: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+      propertyPath: m_Emitting
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3985313740232519974, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
       propertyPath: m_Name
       value: Trail (1)
@@ -2833,6 +2842,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+--- !u!96 &3923754132856623832 stripped
+TrailRenderer:
+  m_CorrespondingSourceObject: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+  m_PrefabInstance: {fileID: 263674322389080829}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &8596225450735249713 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8422628395188990924, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
@@ -2846,6 +2860,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3461143257319572588}
     m_Modifications:
+    - target: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+      propertyPath: m_Emitting
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3985313740232519974, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
       propertyPath: m_Name
       value: Trail (1)
@@ -2895,6 +2913,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+--- !u!96 &2532679702751269045 stripped
+TrailRenderer:
+  m_CorrespondingSourceObject: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+  m_PrefabInstance: {fileID: 1657000560963066000}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &7070078421883693916 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8422628395188990924, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
@@ -2908,6 +2931,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 4864988483071607057}
     m_Modifications:
+    - target: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+      propertyPath: m_Emitting
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3985313740232519974, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
       propertyPath: m_Name
       value: Trail
@@ -2957,6 +2984,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+--- !u!96 &1685272663449187694 stripped
+TrailRenderer:
+  m_CorrespondingSourceObject: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+  m_PrefabInstance: {fileID: 2501874321238523211}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &6222671308686904967 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8422628395188990924, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
@@ -2970,6 +3002,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3580660265335573644}
     m_Modifications:
+    - target: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+      propertyPath: m_Emitting
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3985313740232519974, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
       propertyPath: m_Name
       value: Trail (2)
@@ -3022,5 +3058,10 @@ PrefabInstance:
 --- !u!4 &1571468717426191352 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8422628395188990924, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
+  m_PrefabInstance: {fileID: 7002487872217946164}
+  m_PrefabAsset: {fileID: 0}
+--- !u!96 &6122342839793700881 stripped
+TrailRenderer:
+  m_CorrespondingSourceObject: {fileID: 3880761468039677989, guid: 9b26549b5d9642f48ac40cc514b7b918, type: 3}
   m_PrefabInstance: {fileID: 7002487872217946164}
   m_PrefabAsset: {fileID: 0}
