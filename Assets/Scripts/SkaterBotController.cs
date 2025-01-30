@@ -4,10 +4,7 @@ using UnityEngine.InputSystem;
 
 public class SkaterBotController : MonoBehaviour
 {
-    [Header("Buffer Settings")]
-    [SerializeField] private float bufferTimerThreshold = 0.2f;
-
-    [Header("Car Settings")]
+    [Header("Board Settings")]
     [SerializeField] private float acceleration = 50f;
     [SerializeField] private float maxSpeed = 20f;
     [SerializeField] private float turnSpeed = 100f;
@@ -17,7 +14,7 @@ public class SkaterBotController : MonoBehaviour
 
     private Rigidbody rb;
     private Vector2 inputMovement;
-    private Queue<BufferInput> inputQueue = new Queue<BufferInput>();
+    private Vector2 rightStickInput;
 
     [SerializeField] Transform pivotPointDrift;
 
@@ -67,24 +64,13 @@ public class SkaterBotController : MonoBehaviour
 
     private void HandleBufferInput()
     {
-        if (inputQueue.Count == 0) return;
-        BufferInput currentInput = inputQueue.Peek();
-        if (Time.time - currentInput.timeOfInput < bufferTimerThreshold)
+        if (driftingPressed && !isDrifting)
         {
-            if (currentInput.actionType == PowerSlideData.InputActionType.BRAKE)
-            {
-                state = State.Braking;
-                inputQueue.Dequeue();
-            }
-            else if (currentInput.actionType == PowerSlideData.InputActionType.DRIFT)
-            {
-                StartDrifting();
-                inputQueue.Dequeue();
-            }
+            StartDrifting();
         }
-        else
+        if (!driftingPressed)
         {
-            inputQueue.Dequeue();
+            StopDrifting();
         }
     }
 
@@ -203,9 +189,13 @@ public class SkaterBotController : MonoBehaviour
     }
 
 
+    private void OnLook(InputValue value)
+    {
+        Debug.Log("Right stick value: " + value.Get<Vector2>());
+        rightStickInput = value.Get<Vector2>();
+    }
     private void OnMove(InputValue value)
     {
-        Debug.Log("Moving: " + value);
         inputMovement = value.Get<Vector2>();
     }
 
@@ -220,20 +210,17 @@ public class SkaterBotController : MonoBehaviour
         isAccelerating = false;
     }
 
+    public bool driftingPressed;
     private void OnJump(InputValue value)
     {
-        inputQueue.Enqueue(new BufferInput(PowerSlideData.InputActionType.DRIFT, inputMovement, Time.time));
+        driftingPressed = true;
     }
 
     private void OnJumpReleased(InputValue value)
     {
-        StopDrifting();
+        driftingPressed = false;
     }
 
-    private void OnBrake()
-    {
-        inputQueue.Enqueue(new BufferInput(PowerSlideData.InputActionType.BRAKE, inputMovement, Time.time));
-    }
 
     public float GetTurnInput()
     {
