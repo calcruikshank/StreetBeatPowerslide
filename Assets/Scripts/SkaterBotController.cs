@@ -15,8 +15,9 @@ public class SkaterBotController : MonoBehaviour
 
     // Ollie Settings
     [Header("Ollie Settings")]
-    private float ollieForce = 4f; // Adjust as needed
+    [SerializeField] private float ollieForce = 5f; // Adjust as needed
     [SerializeField] private float ollieCooldown = 1f; // Time before another ollie can be performed
+    [SerializeField] private float ollieResetDelay = 0.2f; // Delay before resetting ollie preparation
 
     private Rigidbody rb;
     private Vector2 inputMovement;
@@ -37,12 +38,27 @@ public class SkaterBotController : MonoBehaviour
     public bool preparedForOllie = false;
     private bool ollieOnCooldown = false;
 
+    // Timer for resetting ollie preparation
+    private float ollieResetTimer = 0f;
+
+    [Header("Coyote Time Settings")]
+    [SerializeField] private float coyoteTimeThreshold = 0.2f;
+
+    private Collider _collider;
+    private float _coyoteTimer;
+    public bool IsGrounded { get; private set; }
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.linearDamping = 0f;
         rb.angularDamping = 1f;
         rb.useGravity = true;
+
+        _collider = GetComponent<Collider>();
+        if (_collider == null)
+        {
+            Debug.LogError("GroundChecker requires a Collider component.");
+        }
     }
 
     private void Start()
@@ -53,6 +69,8 @@ public class SkaterBotController : MonoBehaviour
     private void Update()
     {
         HandleBufferInput();
+        HandleOllieResetTimer();
+        CheckForGround();
     }
 
     private void FixedUpdate()
@@ -89,7 +107,8 @@ public class SkaterBotController : MonoBehaviour
             if (rightStickInput.y < -0.5f)
             {
                 preparedForOllie = true;
-                // Optional: You can add visual/audio feedback here to indicate preparation
+                Debug.Log("Prepared for Ollie!");
+                // Optional: Add visual/audio feedback here to indicate preparation
             }
         }
         else
@@ -97,24 +116,148 @@ public class SkaterBotController : MonoBehaviour
             // Detect when the right stick is released upward
             if (rightStickInput.y > 0.5f && !ollieOnCooldown)
             {
-                Ollie();
-                preparedForOllie = false;
-                StartCoroutine(OllieCooldown());
+                if (IsGrounded)
+                {
+                    Ollie();
+                    preparedForOllie = false;
+
+                    // Reset the ollie reset timer if it's running
+                    ollieResetTimer = 0f;
+
+                    StartOllieCooldown();
+                }
             }
-            // Optional: Reset preparation if the stick is released without flipping up
+            // Reset preparation if the stick is released without flipping up
             else if (rightStickInput.y >= -0.5f && rightStickInput.y <= 0.5f)
             {
-                // You can decide whether to reset or keep the prepared state
-                // For example, reset after a short delay
-                // preparedForOllie = false;
+                if (ollieResetTimer <= 0f)
+                {
+                    ollieResetTimer = ollieResetDelay;
+                    Debug.Log("Ollie preparation will reset in " + ollieResetDelay + " seconds.");
+                }
             }
         }
     }
 
-    private IEnumerator OllieCooldown()
+    /// <summary>
+    /// Handles the timer for resetting the ollie preparation.
+    /// </summary>
+    private void HandleOllieResetTimer()
     {
+        if (preparedForOllie && ollieResetTimer > 0f)
+        {
+            ollieResetTimer -= Time.deltaTime;
+            if (ollieResetTimer <= 0f)
+            {
+                preparedForOllie = false;
+                ollieResetTimer = 0f;
+                Debug.Log("Ollie preparation reset.");
+                // Optional: Add feedback to indicate cancellation of ollie
+            }
+        }
+    }
+
+    [SerializeField] LayerMask groundLayer;
+
+    float coyoteTimerThreshold = .2f;
+    float coyoteTimer = 0f;
+
+    bool groundHasNotBeenLeftAfterJumping = false;
+
+    [Header("Ground Check Settings")]
+    [SerializeField] private Vector3 boxHalfExtents = new Vector3(0.5f, 0.1f, 0.5f);
+    [SerializeField] private Vector3 boxOffset = new Vector3(0, -0.1f, 0);
+    [SerializeField] private float groundDistance = 0.2f;
+    [SerializeField] private LayerMask groundLayerMask;
+    private void CheckForGround()
+    {
+        // Define the center of the box for the ground check
+        Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
+
+        // Perform the box check
+        bool hitGround = Physics.CheckBox(boxCenter, boxHalfExtents, transform.rotation, groundLayerMask, QueryTriggerInteraction.Ignore);
+
+        // Debug visualization
+        DrawBox(boxCenter, boxHalfExtents * 2, hitGround ? Color.green : Color.red);
+
+        if (hitGround)
+        {
+            IsGrounded = true;
+            _coyoteTimer = 0f;
+        }
+        else
+        {
+            if (_coyoteTimer < coyoteTimeThreshold)
+            {
+                _coyoteTimer += Time.deltaTime;
+                if (_coyoteTimer >= coyoteTimeThreshold)
+                {
+                    IsGrounded = false;
+                }
+            }
+        }
+    }
+    private void DrawBox(Vector3 center, Vector3 size, Color color)
+    {
+        Vector3 halfSize = size / 2;
+        Vector3 p0 = center + new Vector3(-halfSize.x, -halfSize.y, -halfSize.z);
+        Vector3 p1 = center + new Vector3(halfSize.x, -halfSize.y, -halfSize.z);
+        Vector3 p2 = center + new Vector3(halfSize.x, -halfSize.y, halfSize.z);
+        Vector3 p3 = center + new Vector3(-halfSize.x, -halfSize.y, halfSize.z);
+        Vector3 p4 = center + new Vector3(-halfSize.x, halfSize.y, -halfSize.z);
+        Vector3 p5 = center + new Vector3(halfSize.x, halfSize.y, -halfSize.z);
+        Vector3 p6 = center + new Vector3(halfSize.x, halfSize.y, halfSize.z);
+        Vector3 p7 = center + new Vector3(-halfSize.x, halfSize.y, halfSize.z);
+
+        // Bottom
+        Debug.DrawLine(p0, p1, color);
+        Debug.DrawLine(p1, p2, color);
+        Debug.DrawLine(p2, p3, color);
+        Debug.DrawLine(p3, p0, color);
+
+        // Top
+        Debug.DrawLine(p4, p5, color);
+        Debug.DrawLine(p5, p6, color);
+        Debug.DrawLine(p6, p7, color);
+        Debug.DrawLine(p7, p4, color);
+
+        // Sides
+        Debug.DrawLine(p0, p4, color);
+        Debug.DrawLine(p1, p5, color);
+        Debug.DrawLine(p2, p6, color);
+        Debug.DrawLine(p3, p7, color);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        // Visualize the ground check box in the editor
+        Gizmos.color = IsGrounded ? Color.green : Color.red;
+        Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
+        Gizmos.DrawWireCube(boxCenter, boxHalfExtents * 2);
+    }
+    private bool CheckColliderGround(RaycastHit col)
+    {
+        //Debug.Log($"{Vector3.Dot(col.normal.normalized, Vector3.up)} bool result: {Vector3.Dot(col.normal.normalized, Vector3.up) >= 0.90f}");
+        return (Vector3.Dot(col.normal.normalized, Vector3.up) >= 0.65f);
+
+    }
+    /// <summary>
+    /// Starts the ollie cooldown timer.
+    /// </summary>
+    private void StartOllieCooldown()
+    {
+        if (ollieOnCooldown)
+            return;
+
         ollieOnCooldown = true;
-        yield return new WaitForSeconds(ollieCooldown);
+        Invoke(nameof(ResetOllieCooldown), ollieCooldown);
+    }
+
+    /// <summary>
+    /// Resets the ollie cooldown state.
+    /// </summary>
+    private void ResetOllieCooldown()
+    {
         ollieOnCooldown = false;
     }
 
@@ -267,6 +410,8 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void Ollie()
     {
+        coyoteTimer = coyoteTimerThreshold;
+        groundHasNotBeenLeftAfterJumping = true;
         // Apply upward force for ollie
         rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
 

@@ -2245,7 +2245,9 @@ MonoBehaviour:
   driftTurnSpeed: 180
   friction: 0.5
   brakeForce: 15
+  ollieForce: 5
   ollieCooldown: 0.1
+  ollieResetDelay: 0.2
   pivotPointDrift: {fileID: 4254989758157830507}
   state: 0
   pivotPoint: {fileID: 7940614215625474929}
@@ -2255,6 +2257,16 @@ MonoBehaviour:
   - {fileID: 1685272663449187694}
   - {fileID: 3923754132856623832}
   preparedForOllie: 0
+  coyoteTimeThreshold: 0.2
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  boxHalfExtents: {x: 0.5, y: 0.1, z: 0.5}
+  boxOffset: {x: 0, y: -0.1, z: 0}
+  groundDistance: 0.2
+  groundLayerMask:
+    serializedVersion: 2
+    m_Bits: 64
   tiltSpeed: 100
   maxTiltAngle: 10
   driftingPressed: 0
