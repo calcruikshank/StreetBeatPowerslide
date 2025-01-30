@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -11,6 +12,11 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float driftTurnSpeed = 200f; // Increased turn speed during drift
     [SerializeField] private float friction = 0.5f;
     [SerializeField] private float brakeForce = 80f;
+
+    // Ollie Settings
+    [Header("Ollie Settings")]
+    private float ollieForce = 4f; // Adjust as needed
+    [SerializeField] private float ollieCooldown = 1f; // Time before another ollie can be performed
 
     private Rigidbody rb;
     private Vector2 inputMovement;
@@ -27,6 +33,9 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] Transform pivotPoint;
 
     [SerializeField] List<TrailRenderer> driftTrails;
+
+    public bool preparedForOllie = false;
+    private bool ollieOnCooldown = false;
 
     private void Awake()
     {
@@ -72,6 +81,41 @@ public class SkaterBotController : MonoBehaviour
         {
             StopDrifting();
         }
+
+        // Handle Ollie Preparation and Execution
+        if (!preparedForOllie)
+        {
+            // Detect when the right stick is pressed down
+            if (rightStickInput.y < -0.5f)
+            {
+                preparedForOllie = true;
+                // Optional: You can add visual/audio feedback here to indicate preparation
+            }
+        }
+        else
+        {
+            // Detect when the right stick is released upward
+            if (rightStickInput.y > 0.5f && !ollieOnCooldown)
+            {
+                Ollie();
+                preparedForOllie = false;
+                StartCoroutine(OllieCooldown());
+            }
+            // Optional: Reset preparation if the stick is released without flipping up
+            else if (rightStickInput.y >= -0.5f && rightStickInput.y <= 0.5f)
+            {
+                // You can decide whether to reset or keep the prepared state
+                // For example, reset after a short delay
+                // preparedForOllie = false;
+            }
+        }
+    }
+
+    private IEnumerator OllieCooldown()
+    {
+        ollieOnCooldown = true;
+        yield return new WaitForSeconds(ollieCooldown);
+        ollieOnCooldown = false;
     }
 
     private float pivotTiltZ = 0f; // Stores the current tilt value
@@ -81,7 +125,7 @@ public class SkaterBotController : MonoBehaviour
     private void HandleMovement(float currentTurnSpeed)
     {
         Vector3 forwardDirection = transform.forward;
-        Vector3 currentVelocity = rb.linearVelocity;
+        Vector3 currentVelocity = rb.linearVelocity; // Changed from rb.linearVelocity to rb.velocity
 
         // Remove sideways movement (keep only forward direction)
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
@@ -94,10 +138,11 @@ public class SkaterBotController : MonoBehaviour
         }
 
         // Clamp speed but preserve falling speed
-        Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, rb.linearVelocity.z);
+        Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
         if (horizontalVelocity.magnitude > maxSpeed)
         {
-            rb.linearVelocity = horizontalVelocity.normalized * maxSpeed + Vector3.up * rb.linearVelocity.y;
+            Vector3 clampedVelocity = horizontalVelocity.normalized * maxSpeed;
+            rb.linearVelocity = new Vector3(clampedVelocity.x, rb.linearVelocity.y, clampedVelocity.z);
         }
 
         float turnAmount = inputMovement.x * currentTurnSpeed * Time.fixedDeltaTime;
@@ -106,7 +151,6 @@ public class SkaterBotController : MonoBehaviour
         {
             // **Fix: Only invert turning when drifting to the right**
             float driftTurnInput = (driftDirection <= 0) ? -inputMovement.x : inputMovement.x;
-            Debug.Log(inputMovement.x + "inputmovement ");
             // Clamp turn input to only allow turning in the drift's original direction
             float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
             turnAmount = clampedTurn * currentTurnSpeed * Time.fixedDeltaTime;
@@ -132,15 +176,12 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
-
-
-
-
     private void HandleBraking()
     {
         rb.AddForce(-rb.linearVelocity.normalized * brakeForce, ForceMode.Acceleration);
         if (rb.linearVelocity.magnitude < 1f) state = State.Normal;
     }
+
     private float driftDirection = 0f; // -1 for left, 1 for right
 
     private float driftTiltZ = 0f;
@@ -165,8 +206,6 @@ public class SkaterBotController : MonoBehaviour
         // Set target drift angle
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
 
-        Debug.Log("Drifting!");
-
         foreach (TrailRenderer trail in driftTrails)
         {
             trail.emitting = true;
@@ -181,19 +220,17 @@ public class SkaterBotController : MonoBehaviour
         // Reset target drift angle
         driftTiltZ = 0f;
 
-        Debug.Log("Stopped Drifting!");
         foreach (TrailRenderer trail in driftTrails)
         {
             trail.emitting = false;
         }
     }
 
-
     private void OnLook(InputValue value)
     {
-        Debug.Log("Right stick value: " + value.Get<Vector2>());
         rightStickInput = value.Get<Vector2>();
     }
+
     private void OnMove(InputValue value)
     {
         inputMovement = value.Get<Vector2>();
@@ -202,7 +239,6 @@ public class SkaterBotController : MonoBehaviour
     private void OnAttack(InputValue value)
     {
         isAccelerating = value.Get<float>() > 0.1f;
-        Debug.Log(isAccelerating ? "Accelerating!" : "Stopped Accelerating");
     }
 
     private void OnAttackReleased(InputValue value)
@@ -221,9 +257,20 @@ public class SkaterBotController : MonoBehaviour
         driftingPressed = false;
     }
 
-
     public float GetTurnInput()
     {
         return inputMovement.x;
+    }
+
+    /// <summary>
+    /// Executes an ollie by applying an upward force.
+    /// </summary>
+    private void Ollie()
+    {
+        // Apply upward force for ollie
+        rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+
+        // Optional: Trigger animations, sounds, or particle effects here
+        Debug.Log("Ollie performed!");
     }
 }

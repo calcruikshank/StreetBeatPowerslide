@@ -2239,13 +2239,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f182ab4e1724f5f47a710abfbb743e7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bufferTimerThreshold: 0.2
   acceleration: 17
   maxSpeed: 22
   turnSpeed: 120
   driftTurnSpeed: 180
   friction: 0.5
   brakeForce: 15
+  ollieCooldown: 0.1
   pivotPointDrift: {fileID: 4254989758157830507}
   state: 0
   pivotPoint: {fileID: 7940614215625474929}
@@ -2254,8 +2254,10 @@ MonoBehaviour:
   - {fileID: 2532679702751269045}
   - {fileID: 1685272663449187694}
   - {fileID: 3923754132856623832}
+  preparedForOllie: 0
   tiltSpeed: 100
   maxTiltAngle: 10
+  driftingPressed: 0
 --- !u!54 &5605830709446707197
 Rigidbody:
   m_ObjectHideFlags: 0
