@@ -16,8 +16,8 @@ public class SkaterBotController : MonoBehaviour
     // Ollie Settings
     [Header("Ollie Settings")]
     [SerializeField] private float ollieForce = 5f; // Adjust as needed
-    [SerializeField] private float ollieCooldown = 1f; // Time before another ollie can be performed
-    [SerializeField] private float ollieResetDelay = 0.2f; // Delay before resetting ollie preparation
+    [SerializeField] private float ollieCooldown = 1f; // Time before another Ollie can be performed
+    [SerializeField] private float ollieResetDelay = 0.2f; // Delay before resetting Ollie preparation
 
     private Rigidbody rb;
     private Vector2 inputMovement;
@@ -38,7 +38,7 @@ public class SkaterBotController : MonoBehaviour
     public bool preparedForOllie = false;
     private bool ollieOnCooldown = false;
 
-    // Timer for resetting ollie preparation
+    // Timer for resetting Ollie preparation
     private float ollieResetTimer = 0f;
 
     [Header("Coyote Time Settings")]
@@ -47,6 +47,14 @@ public class SkaterBotController : MonoBehaviour
     private Collider _collider;
     private float _coyoteTimer;
     public bool IsGrounded { get; private set; }
+
+    [Header("Ground Check Settings")]
+    [SerializeField] private Vector3 boxHalfExtents = new Vector3(0.5f, 0.1f, 0.5f);
+    [SerializeField] private Vector3 boxOffset = new Vector3(0, -0.3f, 0); // Increased from -0.1f to -0.3f
+    [SerializeField] private LayerMask groundLayerMask;
+
+    private bool isPerformingOllie = false; // Flag to indicate if an Ollie is in progress
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -101,7 +109,7 @@ public class SkaterBotController : MonoBehaviour
         }
 
         // Handle Ollie Preparation and Execution
-        if (!preparedForOllie)
+        if (!preparedForOllie && !ollieOnCooldown)
         {
             // Detect when the right stick is pressed down
             if (rightStickInput.y < -0.5f)
@@ -111,7 +119,7 @@ public class SkaterBotController : MonoBehaviour
                 // Optional: Add visual/audio feedback here to indicate preparation
             }
         }
-        else
+        else if (preparedForOllie)
         {
             // Detect when the right stick is released upward
             if (rightStickInput.y > 0.5f && !ollieOnCooldown)
@@ -121,10 +129,8 @@ public class SkaterBotController : MonoBehaviour
                     Ollie();
                     preparedForOllie = false;
 
-                    // Reset the ollie reset timer if it's running
+                    // Reset the Ollie reset timer if it's running
                     ollieResetTimer = 0f;
-
-                    StartOllieCooldown();
                 }
             }
             // Reset preparation if the stick is released without flipping up
@@ -140,7 +146,7 @@ public class SkaterBotController : MonoBehaviour
     }
 
     /// <summary>
-    /// Handles the timer for resetting the ollie preparation.
+    /// Handles the timer for resetting the Ollie preparation.
     /// </summary>
     private void HandleOllieResetTimer()
     {
@@ -152,23 +158,11 @@ public class SkaterBotController : MonoBehaviour
                 preparedForOllie = false;
                 ollieResetTimer = 0f;
                 Debug.Log("Ollie preparation reset.");
-                // Optional: Add feedback to indicate cancellation of ollie
+                // Optional: Add feedback to indicate cancellation of Ollie
             }
         }
     }
 
-    [SerializeField] LayerMask groundLayer;
-
-    float coyoteTimerThreshold = .2f;
-    float coyoteTimer = 0f;
-
-    bool groundHasNotBeenLeftAfterJumping = false;
-
-    [Header("Ground Check Settings")]
-    [SerializeField] private Vector3 boxHalfExtents = new Vector3(0.5f, 0.1f, 0.5f);
-    [SerializeField] private Vector3 boxOffset = new Vector3(0, -0.1f, 0);
-    [SerializeField] private float groundDistance = 0.2f;
-    [SerializeField] private LayerMask groundLayerMask;
     private void CheckForGround()
     {
         // Define the center of the box for the ground check
@@ -180,7 +174,7 @@ public class SkaterBotController : MonoBehaviour
         // Debug visualization
         DrawBox(boxCenter, boxHalfExtents * 2, hitGround ? Color.green : Color.red);
 
-        if (hitGround)
+        if (hitGround && !isPerformingOllie)
         {
             IsGrounded = true;
             _coyoteTimer = 0f;
@@ -197,6 +191,7 @@ public class SkaterBotController : MonoBehaviour
             }
         }
     }
+
     private void DrawBox(Vector3 center, Vector3 size, Color color)
     {
         Vector3 halfSize = size / 2;
@@ -235,29 +230,28 @@ public class SkaterBotController : MonoBehaviour
         Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
         Gizmos.DrawWireCube(boxCenter, boxHalfExtents * 2);
     }
+
     private bool CheckColliderGround(RaycastHit col)
     {
         //Debug.Log($"{Vector3.Dot(col.normal.normalized, Vector3.up)} bool result: {Vector3.Dot(col.normal.normalized, Vector3.up) >= 0.90f}");
         return (Vector3.Dot(col.normal.normalized, Vector3.up) >= 0.65f);
-
     }
+
     /// <summary>
-    /// Starts the ollie cooldown timer.
+    /// Starts the Ollie cooldown timer using a coroutine.
     /// </summary>
     private void StartOllieCooldown()
     {
         if (ollieOnCooldown)
             return;
 
-        ollieOnCooldown = true;
-        Invoke(nameof(ResetOllieCooldown), ollieCooldown);
+        StartCoroutine(OllieCooldownRoutine());
     }
 
-    /// <summary>
-    /// Resets the ollie cooldown state.
-    /// </summary>
-    private void ResetOllieCooldown()
+    private IEnumerator OllieCooldownRoutine()
     {
+        ollieOnCooldown = true;
+        yield return new WaitForSeconds(ollieCooldown);
         ollieOnCooldown = false;
     }
 
@@ -328,7 +322,7 @@ public class SkaterBotController : MonoBehaviour
     private float driftDirection = 0f; // -1 for left, 1 for right
 
     private float driftTiltZ = 0f;
-    private float driftTiltSpeed = 1500f; // Speed of tilt transition
+    [SerializeField] private float driftTiltSpeed = 1500f; // Speed of tilt transition
 
     private void StartDrifting()
     {
@@ -406,16 +400,30 @@ public class SkaterBotController : MonoBehaviour
     }
 
     /// <summary>
-    /// Executes an ollie by applying an upward force.
+    /// Executes an Ollie by applying an upward force.
     /// </summary>
     private void Ollie()
     {
-        coyoteTimer = coyoteTimerThreshold;
-        groundHasNotBeenLeftAfterJumping = true;
-        // Apply upward force for ollie
+        // Immediately set IsGrounded to false and indicate an Ollie is in progress
+        IsGrounded = false;
+        isPerformingOllie = true;
+        _coyoteTimer = coyoteTimeThreshold;
+
+        // Apply upward force for Ollie
         rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+
+        // Start cooldown
+        StartOllieCooldown();
 
         // Optional: Trigger animations, sounds, or particle effects here
         Debug.Log("Ollie performed!");
+
+        // Reset the isPerformingOllie flag after a short delay to ensure accurate ground detection
+        Invoke(nameof(ResetOllieState), 0.1f); // Adjust delay as needed
+    }
+
+    private void ResetOllieState()
+    {
+        isPerformingOllie = false;
     }
 }
