@@ -291,12 +291,20 @@ public class SkaterBotController : MonoBehaviour
             // Clamp turn input to only allow turning in the drift's original direction
             float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
             turnAmount = clampedTurn * currentTurnSpeed * Time.fixedDeltaTime;
+            
         }
 
-        transform.Rotate(0, turnAmount, 0);
+        if (IsGrounded)
+        {
+            transform.Rotate(0, turnAmount, 0);
+        }
 
         if (!isDrifting)
         {
+            foreach (TrailRenderer trail in driftTrails)
+            {
+                trail.emitting = false;
+            }
             // Smoothly rotate pivot based on input
             float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f);
             pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
@@ -308,8 +316,22 @@ public class SkaterBotController : MonoBehaviour
         // Smoothly transition **drift tilt** (drifting effect)
         if (isDrifting)
         {
+            if (IsGrounded)
+            {
+                foreach (TrailRenderer trail in driftTrails)
+                {
+                    trail.emitting = true;
+                }
+            }
             float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, driftTiltZ, driftTiltSpeed * Time.deltaTime);
             pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+        }
+        if (!IsGrounded)
+        {
+            foreach (TrailRenderer trail in driftTrails)
+            {
+                trail.emitting = false;
+            }
         }
     }
 
@@ -343,10 +365,6 @@ public class SkaterBotController : MonoBehaviour
         // Set target drift angle
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
 
-        foreach (TrailRenderer trail in driftTrails)
-        {
-            trail.emitting = true;
-        }
     }
 
     private void StopDrifting()
