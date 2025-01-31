@@ -143,7 +143,7 @@ public class SkaterBotController : MonoBehaviour
             Vector3 groundNormal = hit.normal;
 
             // Check if the ground is flat (normal is approximately up)
-            if (Vector3.Dot(groundNormal, Vector3.up) > 0.99f) // Adjust threshold as needed
+            if (Vector3.Dot(groundNormal, Vector3.up) > 0.999f) // Adjust threshold as needed
             {
                 // On flat ground, reset the local Euler angles to zero
                 alignTransform.localEulerAngles = Vector3.zero;
@@ -219,7 +219,7 @@ public class SkaterBotController : MonoBehaviour
                 if (rightStickInput.x > 0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
                 {
                     // Right Flick - Kickflip
-                    if (IsGrounded && !isPerformingTrick)
+                    if (!isPerformingTrick)
                     {
                         PerformKickflip();
                         ResetTrickPreparation();
@@ -228,7 +228,7 @@ public class SkaterBotController : MonoBehaviour
                 else if (rightStickInput.x < -0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
                 {
                     // Left Flick - Pop Shuv It
-                    if (IsGrounded && !isPerformingTrick)
+                    if (!isPerformingTrick)
                     {
                         PerformPopShuvIt();
                         ResetTrickPreparation();
@@ -237,7 +237,7 @@ public class SkaterBotController : MonoBehaviour
                 else if (rightStickInput.y > 0.5f)
                 {
                     // Up Flick - Ollie
-                    if (IsGrounded && !isPerformingTrick)
+                    if (!isPerformingTrick && IsGrounded)
                     {
                         PerformOllie();
                         ResetTrickPreparation();
@@ -584,14 +584,17 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void PerformOllie()
     {
-        animator.SetTrigger("Ollie");
-        // Immediately set IsGrounded to false and indicate a trick is in progress
-        IsGrounded = false;
         isPerformingTrick = true;
         _coyoteTimer = coyoteTimeThreshold;
 
         // Apply upward force for Ollie
-        rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+        if (IsGrounded)
+        {
+            rb.AddForce(Vector3.up * ollieForce * 1.5f, ForceMode.Impulse);
+        }
+        animator.SetTrigger("Ollie");
+        // Immediately set IsGrounded to false and indicate a trick is in progress
+        IsGrounded = false;
 
         // Start cooldown
         StartTrickCooldown();
@@ -600,7 +603,7 @@ public class SkaterBotController : MonoBehaviour
         Debug.Log("Ollie performed!");
 
         // Reset the isPerformingTrick flag after a short delay to ensure accurate ground detection
-        Invoke(nameof(ResetTrickState), 0.1f); // Adjust delay as needed
+        Invoke(nameof(ResetTrickState), 0.02f); // Adjust delay as needed
     }
 
     /// <summary>
@@ -608,17 +611,18 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void PerformKickflip()
     {
+        isPerformingTrick = true;
+        _coyoteTimer = coyoteTimeThreshold;
+        // Apply upward force for Kickflip
+        if (IsGrounded)
+        {
+            rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+        }
         animator.SetTrigger("Kickflip");
         // Immediately set IsGrounded to false and indicate a trick is in progress
         IsGrounded = false;
-        isPerformingTrick = true;
-        _coyoteTimer = coyoteTimeThreshold;
 
-        // Apply upward force for Kickflip
-        rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
 
-        // Apply rotational force for Kickflip
-        rb.AddTorque(transform.forward * ollieForce * 2, ForceMode.Impulse); // Adjust torque as needed
 
         // Start cooldown
         StartTrickCooldown();
@@ -627,7 +631,7 @@ public class SkaterBotController : MonoBehaviour
         Debug.Log("Kickflip performed!");
 
         // Reset the trick state after a short delay
-        Invoke(nameof(ResetTrickState), 0.1f); // Adjust delay as needed
+        Invoke(nameof(ResetTrickState), 0.02f); // Adjust delay as needed
     }
 
     /// <summary>
@@ -635,17 +639,19 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void PerformPopShuvIt()
     {
+        isPerformingTrick = true;
+        _coyoteTimer = coyoteTimeThreshold;
+        // Apply upward force for Pop Shuv It
+        if (IsGrounded)
+        {
+            rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+        }
         animator.SetTrigger("PopShuvIt");
         // Immediately set IsGrounded to false and indicate a trick is in progress
         IsGrounded = false;
-        isPerformingTrick = true;
-        _coyoteTimer = coyoteTimeThreshold;
 
-        // Apply upward force for Pop Shuv It
-        rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
 
         // Apply rotational force for Pop Shuv It
-        rb.AddTorque(transform.up * ollieForce * 2, ForceMode.Impulse); // Adjust torque as needed
 
         // Start cooldown
         StartTrickCooldown();
@@ -654,7 +660,7 @@ public class SkaterBotController : MonoBehaviour
         Debug.Log("Pop Shuv It performed!");
 
         // Reset the trick state after a short delay
-        Invoke(nameof(ResetTrickState), 0.1f); // Adjust delay as needed
+        Invoke(nameof(ResetTrickState), 0.02f); // Adjust delay as needed
     }
 
     /// <summary>
