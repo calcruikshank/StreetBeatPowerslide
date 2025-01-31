@@ -55,6 +55,8 @@ public class SkaterBotController : MonoBehaviour
 
     private bool isPerformingOllie = false; // Flag to indicate if an Ollie is in progress
 
+
+    [SerializeField] Animator animator;
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -115,6 +117,7 @@ public class SkaterBotController : MonoBehaviour
             if (rightStickInput.y < -0.5f)
             {
                 preparedForOllie = true;
+                animator.SetTrigger("PreparedForOllie");
                 Debug.Log("Prepared for Ollie!");
                 // Optional: Add visual/audio feedback here to indicate preparation
             }
@@ -155,6 +158,8 @@ public class SkaterBotController : MonoBehaviour
             ollieResetTimer -= Time.deltaTime;
             if (ollieResetTimer <= 0f)
             {
+                animator.SetBool("PreparedForOllie", false);
+
                 preparedForOllie = false;
                 ollieResetTimer = 0f;
                 Debug.Log("Ollie preparation reset.");
@@ -176,6 +181,10 @@ public class SkaterBotController : MonoBehaviour
 
         if (hitGround && !isPerformingOllie)
         {
+            if (IsGrounded == false)
+            {
+                animator.SetTrigger("Landing");
+            }
             IsGrounded = true;
             _coyoteTimer = 0f;
         }
@@ -422,6 +431,8 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void Ollie()
     {
+        animator.SetTrigger("Kickflip");
+        animator.SetBool("PreparedForOllie", false);
         // Immediately set IsGrounded to false and indicate an Ollie is in progress
         IsGrounded = false;
         isPerformingOllie = true;
@@ -442,6 +453,7 @@ public class SkaterBotController : MonoBehaviour
 
     private void ResetOllieState()
     {
+        animator.SetBool("Kickflip", false);
         isPerformingOllie = false;
     }
 }

@@ -2264,6 +2264,7 @@ MonoBehaviour:
   groundLayerMask:
     serializedVersion: 2
     m_Bits: 64
+  animator: {fileID: 9127501251042354101}
   tiltSpeed: 100
   maxTiltAngle: 10
   driftTiltSpeed: 1500
