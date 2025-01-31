@@ -2173,8 +2173,8 @@ GameObject:
   - component: {fileID: 6609755541738555956}
   - component: {fileID: 4753187464518247141}
   - component: {fileID: 5605830709446707197}
-  - component: {fileID: 1634094437860901356}
   - component: {fileID: 9127501251042354101}
+  - component: {fileID: 161603485246700724}
   m_Layer: 0
   m_Name: SkaterbotSmallerHead
   m_TagString: Untagged
@@ -2241,14 +2241,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   acceleration: 17
-  maxSpeed: 22
-  turnSpeed: 120
-  driftTurnSpeed: 180
+  maxSpeed: 30
+  turnSpeed: 100
+  driftTurnSpeed: 150
   friction: 0.5
   brakeForce: 15
   ollieForce: 5
-  ollieCooldown: 0.1
-  ollieResetDelay: 0.2
+  trickCooldown: 1
+  trickPreparationTime: 1
+  trickCancelDelay: 0.1
   pivotPointDrift: {fileID: 4254989758157830507}
   state: 0
   pivotPoint: {fileID: 7940614215625474929}
@@ -2257,7 +2258,6 @@ MonoBehaviour:
   - {fileID: 2532679702751269045}
   - {fileID: 1685272663449187694}
   - {fileID: 3923754132856623832}
-  preparedForOllie: 0
   coyoteTimeThreshold: 0.2
   boxHalfExtents: {x: 0.5, y: 0.1, z: 0.5}
   boxOffset: {x: 0, y: -0.1, z: 0}
@@ -2266,8 +2266,13 @@ MonoBehaviour:
     m_Bits: 64
   animator: {fileID: 9127501251042354101}
   tiltSpeed: 100
-  maxTiltAngle: 10
   driftTiltSpeed: 1500
+  preparedForTrick: 0
+  groundRayDistance: 2
+  alignmentSpeed: 50
+  alignmentOffset: 0.5
+  rotationConstraints: {x: 0, y: 360, z: 0}
+  alignTransform: {fileID: 853803966856592571}
   driftingPressed: 0
 --- !u!54 &5605830709446707197
 Rigidbody:
@@ -2296,27 +2301,6 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 112
   m_CollisionDetection: 1
---- !u!65 &1634094437860901356
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7010648667369827308}
-  m_Material: {fileID: 13400000, guid: 90fe328d132ac9a48b114c61852a1fa9, type: 2}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.27989507, y: 0.9059834, z: 0.84531224}
-  m_Center: {x: 0.02267763, y: 0.4402484, z: 0.060693562}
 --- !u!95 &9127501251042354101
 Animator:
   serializedVersion: 7
@@ -2339,6 +2323,29 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!136 &161603485246700724
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7010648667369827308}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.38
+  m_Height: 1
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.48, z: 0.07}
 --- !u!1 &7303239059154055893
 GameObject:
   m_ObjectHideFlags: 0

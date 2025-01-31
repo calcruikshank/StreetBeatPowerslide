@@ -65,6 +65,15 @@ public class SkaterBotController : MonoBehaviour
     private Coroutine trickPreparationCoroutine;
     private Coroutine trickCancelCoroutine;
 
+    // New Variables for Ground Alignment
+    [Header("Ground Alignment Settings")]
+    [SerializeField] private float groundRayDistance = 2f; // Distance to cast the ray
+    [SerializeField] private float alignmentSpeed = 5f; // Speed of alignment rotation
+    [SerializeField] private float alignmentOffset = 0.5f; // Offset above the ground to cast the ray
+
+    // Rotation Constraints
+    [SerializeField] private Vector3 rotationConstraints = new Vector3(0f, 360f, 0f); // Limit rotation on specific axes if needed
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -111,7 +120,37 @@ public class SkaterBotController : MonoBehaviour
                 HandleMovement(driftTurnSpeed);
                 break;
         }
+
+        AlignWithGround(); // Move alignment to FixedUpdate for physics consistency
     }
+
+    /// <summary>
+    /// Aligns the skater's orientation with the ground's normal using physics-based rotation.
+    /// </summary>
+    /// 
+    [SerializeField] Transform alignTransform;
+    private void AlignWithGround()
+    {
+        if (!IsGrounded || _coyoteTimer > 0)
+            return;
+
+        Ray ray = new Ray(transform.position + Vector3.up * alignmentOffset, Vector3.down);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, groundRayDistance, groundLayerMask))
+        {
+            Vector3 groundNormal = hit.normal;
+
+            // Calculate the desired rotation to align the alignTransform's up vector with the ground normal
+            Quaternion targetRotation = Quaternion.FromToRotation(alignTransform.up, groundNormal) * alignTransform.rotation;
+
+            // Smoothly interpolate to the target rotation
+            Quaternion newRotation = Quaternion.Slerp(alignTransform.rotation, targetRotation, alignmentSpeed * Time.fixedDeltaTime);
+
+            alignTransform.rotation = newRotation;
+        }
+    }
+
 
     /// <summary>
     /// Handles the input buffering for initiating and executing tricks.
@@ -322,7 +361,16 @@ public class SkaterBotController : MonoBehaviour
         Gizmos.color = IsGrounded ? Color.green : Color.red;
         Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
         Gizmos.DrawWireCube(boxCenter, boxHalfExtents * 2);
+
+        // Visualize the ground alignment ray
+        if (alignTransform != null)
+        {
+            Gizmos.color = Color.blue;
+            Vector3 rayOrigin = alignTransform.position + Vector3.up * alignmentOffset;
+            Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * groundRayDistance);
+        }
     }
+
 
     private bool CheckColliderGround(RaycastHit col)
     {
@@ -357,10 +405,13 @@ public class SkaterBotController : MonoBehaviour
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
         rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z); // Preserve gravity
 
-        // Apply acceleration
-        if (isAccelerating)
+        if (IsGrounded)
         {
-            rb.AddForce(forwardDirection * acceleration, ForceMode.Acceleration);
+            // Apply acceleration
+            if (isAccelerating)
+            {
+                rb.AddForce(forwardDirection * acceleration, ForceMode.Acceleration);
+            }
         }
 
         // Clamp speed but preserve falling speed
@@ -384,7 +435,9 @@ public class SkaterBotController : MonoBehaviour
 
         if (IsGrounded)
         {
-            transform.Rotate(0, turnAmount, 0);
+            // Apply rotation using Rigidbody.MoveRotation for physics compatibility
+            Quaternion turnRotation = Quaternion.Euler(0f, turnAmount, 0f);
+            rb.MoveRotation(rb.rotation * turnRotation);
         }
 
         if (!isDrifting)
