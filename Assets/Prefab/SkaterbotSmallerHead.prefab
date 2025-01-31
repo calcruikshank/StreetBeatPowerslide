@@ -2270,7 +2270,7 @@ MonoBehaviour:
   driftTiltSpeed: 1500
   preparedForTrick: 0
   groundRayDistance: 2
-  alignmentSpeed: 50
+  alignmentSpeed: 10
   alignmentOffset: 0.5
   rotationConstraints: {x: 0, y: 360, z: 0}
   alignTransform: {fileID: 853803966856592571}
