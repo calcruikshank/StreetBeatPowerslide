@@ -129,6 +129,7 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     /// 
     [SerializeField] Transform alignTransform;
+    Vector3 movementDirection; // Assume this is set based on your input/movement logic
     private void AlignWithGround()
     {
         if (!IsGrounded || _coyoteTimer > 0)
@@ -141,13 +142,27 @@ public class SkaterBotController : MonoBehaviour
         {
             Vector3 groundNormal = hit.normal;
 
-            // Calculate the desired rotation to align the alignTransform's up vector with the ground normal
-            Quaternion targetRotation = Quaternion.FromToRotation(alignTransform.up, groundNormal) * alignTransform.rotation;
+            // Ensure the movement direction is valid
+            if (movementDirection.sqrMagnitude > 0.001f)
+            {
+                // Calculate the desired forward direction based on movement
+                Vector3 desiredForward = Vector3.ProjectOnPlane(movementDirection, groundNormal).normalized;
 
-            // Smoothly interpolate to the target rotation
-            Quaternion newRotation = Quaternion.Slerp(alignTransform.rotation, targetRotation, alignmentSpeed * Time.fixedDeltaTime);
+                // Create a rotation that looks in the desired forward direction with the up vector aligned to the ground normal
+                Quaternion targetRotation = Quaternion.LookRotation(desiredForward, groundNormal);
 
-            alignTransform.rotation = newRotation;
+                // Smoothly interpolate to the target rotation
+                Quaternion newRotation = Quaternion.Slerp(alignTransform.rotation, targetRotation, alignmentSpeed * Time.fixedDeltaTime);
+
+                alignTransform.rotation = newRotation;
+            }
+            else
+            {
+                // If there's no movement, just align the up vector
+                Quaternion targetRotation = Quaternion.FromToRotation(alignTransform.up, groundNormal) * alignTransform.rotation;
+                Quaternion newRotation = Quaternion.Slerp(alignTransform.rotation, targetRotation, alignmentSpeed * Time.fixedDeltaTime);
+                alignTransform.rotation = newRotation;
+            }
         }
     }
 
