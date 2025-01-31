@@ -13,11 +13,11 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float friction = 0.5f;
     [SerializeField] private float brakeForce = 80f;
 
-    // Ollie Settings
-    [Header("Ollie Settings")]
+    [Header("Trick Settings")]
     [SerializeField] private float ollieForce = 5f; // Adjust as needed
-    [SerializeField] private float ollieCooldown = 1f; // Time before another Ollie can be performed
-    [SerializeField] private float ollieResetDelay = 0.2f; // Delay before resetting Ollie preparation
+    [SerializeField] private float trickCooldown = 1f; // Time before another trick can be performed
+    [SerializeField] private float trickPreparationTime = 1f; // Time allowed for player to flick after preparation
+    [SerializeField] private float trickCancelDelay = 0.1f; // Delay before cancelling preparation after stick returns to center
 
     private Rigidbody rb;
     private Vector2 inputMovement;
@@ -35,11 +35,7 @@ public class SkaterBotController : MonoBehaviour
 
     [SerializeField] List<TrailRenderer> driftTrails;
 
-    public bool preparedForOllie = false;
-    private bool ollieOnCooldown = false;
-
-    // Timer for resetting Ollie preparation
-    private float ollieResetTimer = 0f;
+    private bool trickOnCooldown = false;
 
     [Header("Coyote Time Settings")]
     [SerializeField] private float coyoteTimeThreshold = 0.2f;
@@ -53,10 +49,22 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private Vector3 boxOffset = new Vector3(0, -0.3f, 0); // Increased from -0.1f to -0.3f
     [SerializeField] private LayerMask groundLayerMask;
 
-    private bool isPerformingOllie = false; // Flag to indicate if an Ollie is in progress
-
+    private bool isPerformingTrick = false; // Flag to indicate if a trick is in progress
 
     [SerializeField] Animator animator;
+
+    // Drift Variables
+    private float driftDirection = 0f; // -1 for left, 1 for right
+    private float pivotTiltZ = 0f; // Stores the current tilt value
+    [SerializeField] private float tiltSpeed = 5f; // Speed of tilt transition
+    [SerializeField] private float driftTiltSpeed = 1500f; // Speed of drift tilt transition
+    private float driftTiltZ = 0f;
+
+    // Trick Preparation Variables
+    public bool preparedForTrick = false;
+    private Coroutine trickPreparationCoroutine;
+    private Coroutine trickCancelCoroutine;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -67,19 +75,25 @@ public class SkaterBotController : MonoBehaviour
         _collider = GetComponent<Collider>();
         if (_collider == null)
         {
-            Debug.LogError("GroundChecker requires a Collider component.");
+            Debug.LogWarning("Collider component missing on SkaterBot.");
         }
     }
 
     private void Start()
     {
-        GameManager.instance.skaterBotCamera.FindPlayer(this);
+        if (GameManager.instance != null && GameManager.instance.skaterBotCamera != null)
+        {
+            GameManager.instance.skaterBotCamera.FindPlayer(this);
+        }
+        else
+        {
+            Debug.LogWarning("GameManager or SkaterBotCamera not found.");
+        }
     }
 
     private void Update()
     {
         HandleBufferInput();
-        HandleOllieResetTimer();
         CheckForGround();
     }
 
@@ -99,8 +113,12 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Handles the input buffering for initiating and executing tricks.
+    /// </summary>
     private void HandleBufferInput()
     {
+        // Handle drifting input
         if (driftingPressed && !isDrifting)
         {
             StartDrifting();
@@ -110,61 +128,127 @@ public class SkaterBotController : MonoBehaviour
             StopDrifting();
         }
 
-        // Handle Ollie Preparation and Execution
-        if (!preparedForOllie && !ollieOnCooldown)
+        // Handle Trick Preparation and Execution
+        if (!preparedForTrick && !trickOnCooldown && !isPerformingTrick)
         {
-            // Detect when the right stick is pressed down
+            // Detect when the right stick is pressed down (e.g., y < -0.5)
             if (rightStickInput.y < -0.5f)
             {
-                preparedForOllie = true;
-                animator.SetTrigger("PreparedForOllie");
-                Debug.Log("Prepared for Ollie!");
-                // Optional: Add visual/audio feedback here to indicate preparation
+                preparedForTrick = true;
+                animator.SetTrigger("PreparedForTrick");
+                Debug.Log("Prepared for Trick!");
+
+                // Start a coroutine to handle trick preparation timeout
+                if (trickPreparationCoroutine != null)
+                {
+                    StopCoroutine(trickPreparationCoroutine);
+                }
+                trickPreparationCoroutine = StartCoroutine(TrickPreparationTimer());
             }
         }
-        else if (preparedForOllie)
+        else if (preparedForTrick && !isPerformingTrick)
         {
-            // Detect when the right stick is released upward
-            if (rightStickInput.y > 0.5f && !ollieOnCooldown)
+            // Detect if the stick has been flicked in a direction
+            if (rightStickInput.magnitude >= 0.5f && rightStickInput.y >= -0.5f)
             {
-                if (IsGrounded)
+                if (rightStickInput.x > 0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
                 {
-                    Ollie();
-                    preparedForOllie = false;
-
-                    // Reset the Ollie reset timer if it's running
-                    ollieResetTimer = 0f;
+                    // Right Flick - Kickflip
+                    if (IsGrounded && !isPerformingTrick)
+                    {
+                        PerformKickflip();
+                        ResetTrickPreparation();
+                    }
+                }
+                else if (rightStickInput.x < -0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
+                {
+                    // Left Flick - Pop Shuv It
+                    if (IsGrounded && !isPerformingTrick)
+                    {
+                        PerformPopShuvIt();
+                        ResetTrickPreparation();
+                    }
+                }
+                else if (rightStickInput.y > 0.5f)
+                {
+                    // Up Flick - Ollie
+                    if (IsGrounded && !isPerformingTrick)
+                    {
+                        PerformOllie();
+                        ResetTrickPreparation();
+                    }
+                }
+                else
+                {
+                    // Ambiguous direction; do not perform any trick
+                    // Optionally, provide feedback or handle as needed
                 }
             }
-            // Reset preparation if the stick is released without flipping up
-            else if (rightStickInput.y >= -0.5f && rightStickInput.y <= 0.5f)
+            else if (rightStickInput.magnitude < 0.5f)
             {
-                if (ollieResetTimer <= 0f)
+                // Stick returned to center without a flick; start cancel timer
+                if (trickCancelCoroutine == null)
                 {
-                    ollieResetTimer = ollieResetDelay;
-                    Debug.Log("Ollie preparation will reset in " + ollieResetDelay + " seconds.");
+                    trickCancelCoroutine = StartCoroutine(TrickCancelTimer());
                 }
             }
         }
     }
 
     /// <summary>
-    /// Handles the timer for resetting the Ollie preparation.
+    /// Coroutine to handle the trick preparation timer.
+    /// If the player does not perform a trick within the preparation time, cancel the preparation.
     /// </summary>
-    private void HandleOllieResetTimer()
+    private IEnumerator TrickPreparationTimer()
     {
-        if (preparedForOllie && ollieResetTimer > 0f)
-        {
-            ollieResetTimer -= Time.deltaTime;
-            if (ollieResetTimer <= 0f)
-            {
-                animator.SetBool("PreparedForOllie", false);
+        yield return new WaitForSeconds(trickPreparationTime);
 
-                preparedForOllie = false;
-                ollieResetTimer = 0f;
-                Debug.Log("Ollie preparation reset.");
-                // Optional: Add feedback to indicate cancellation of Ollie
-            }
+        if (preparedForTrick && !isPerformingTrick)
+        {
+            // Preparation time elapsed without a valid flick; reset preparation
+            ResetTrickPreparation();
+            Debug.Log("Trick preparation timed out without a valid flick.");
+            // Optionally, add feedback to indicate cancellation of Trick
+        }
+    }
+
+    /// <summary>
+    /// Coroutine to handle the trick cancellation after the stick returns to center.
+    /// </summary>
+    private IEnumerator TrickCancelTimer()
+    {
+        yield return new WaitForSeconds(trickCancelDelay);
+
+        // Only reset if the stick is still centered after the delay
+        if (rightStickInput.magnitude < 0.5f && preparedForTrick)
+        {
+            ResetTrickPreparation();
+            Debug.Log("Trick preparation canceled due to stick returning to center.");
+        }
+
+        trickCancelCoroutine = null;
+    }
+
+    /// <summary>
+    /// Resets the trick preparation state.
+    /// </summary>
+    private void ResetTrickPreparation()
+    {
+        preparedForTrick = false;
+        animator.SetBool("PreparedForTrick", false);
+
+        // Stop the preparation timer coroutine if it's still running
+        if (trickPreparationCoroutine != null)
+        {
+            StopCoroutine(trickPreparationCoroutine);
+            trickPreparationCoroutine = null;
+        }
+
+        // Stop the cancellation coroutine if it's running
+        if (trickCancelCoroutine != null)
+        {
+            StopCoroutine(trickCancelCoroutine);
+            trickCancelCoroutine = null;
         }
     }
 
@@ -179,9 +263,9 @@ public class SkaterBotController : MonoBehaviour
         // Debug visualization
         DrawBox(boxCenter, boxHalfExtents * 2, hitGround ? Color.green : Color.red);
 
-        if (hitGround && !isPerformingOllie)
+        if (hitGround && !isPerformingTrick)
         {
-            if (IsGrounded == false)
+            if (!IsGrounded)
             {
                 animator.SetTrigger("Landing");
             }
@@ -247,26 +331,22 @@ public class SkaterBotController : MonoBehaviour
     }
 
     /// <summary>
-    /// Starts the Ollie cooldown timer using a coroutine.
+    /// Starts the cooldown timer for performing tricks.
     /// </summary>
-    private void StartOllieCooldown()
+    private void StartTrickCooldown()
     {
-        if (ollieOnCooldown)
+        if (trickOnCooldown)
             return;
 
-        StartCoroutine(OllieCooldownRoutine());
+        StartCoroutine(TrickCooldownRoutine());
     }
 
-    private IEnumerator OllieCooldownRoutine()
+    private IEnumerator TrickCooldownRoutine()
     {
-        ollieOnCooldown = true;
-        yield return new WaitForSeconds(ollieCooldown);
-        ollieOnCooldown = false;
+        trickOnCooldown = true;
+        yield return new WaitForSeconds(trickCooldown);
+        trickOnCooldown = false;
     }
-
-    private float pivotTiltZ = 0f; // Stores the current tilt value
-    [SerializeField] private float tiltSpeed = 5f; // Speed of tilt transition
-    [SerializeField] private float maxTiltAngle = 10f; // Maximum tilt angle on the Z-axis
 
     private void HandleMovement(float currentTurnSpeed)
     {
@@ -300,7 +380,6 @@ public class SkaterBotController : MonoBehaviour
             // Clamp turn input to only allow turning in the drift's original direction
             float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
             turnAmount = clampedTurn * currentTurnSpeed * Time.fixedDeltaTime;
-            
         }
 
         if (IsGrounded)
@@ -350,11 +429,6 @@ public class SkaterBotController : MonoBehaviour
         if (rb.linearVelocity.magnitude < 1f) state = State.Normal;
     }
 
-    private float driftDirection = 0f; // -1 for left, 1 for right
-
-    private float driftTiltZ = 0f;
-    [SerializeField] private float driftTiltSpeed = 1500f; // Speed of tilt transition
-
     private void StartDrifting()
     {
         // Reset normal tilt
@@ -373,7 +447,6 @@ public class SkaterBotController : MonoBehaviour
 
         // Set target drift angle
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
-
     }
 
     private void StopDrifting()
@@ -390,6 +463,7 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
+    // Input Handlers
     private void OnLook(InputValue value)
     {
         rightStickInput = value.Get<Vector2>();
@@ -429,31 +503,86 @@ public class SkaterBotController : MonoBehaviour
     /// <summary>
     /// Executes an Ollie by applying an upward force.
     /// </summary>
-    private void Ollie()
+    private void PerformOllie()
     {
-        animator.SetTrigger("Kickflip");
-        animator.SetBool("PreparedForOllie", false);
-        // Immediately set IsGrounded to false and indicate an Ollie is in progress
+        animator.SetTrigger("Ollie");
+        // Immediately set IsGrounded to false and indicate a trick is in progress
         IsGrounded = false;
-        isPerformingOllie = true;
+        isPerformingTrick = true;
         _coyoteTimer = coyoteTimeThreshold;
 
         // Apply upward force for Ollie
         rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
 
         // Start cooldown
-        StartOllieCooldown();
+        StartTrickCooldown();
 
         // Optional: Trigger animations, sounds, or particle effects here
         Debug.Log("Ollie performed!");
 
-        // Reset the isPerformingOllie flag after a short delay to ensure accurate ground detection
-        Invoke(nameof(ResetOllieState), 0.1f); // Adjust delay as needed
+        // Reset the isPerformingTrick flag after a short delay to ensure accurate ground detection
+        Invoke(nameof(ResetTrickState), 0.1f); // Adjust delay as needed
     }
 
-    private void ResetOllieState()
+    /// <summary>
+    /// Executes a Kickflip by applying an upward and rotational force.
+    /// </summary>
+    private void PerformKickflip()
     {
-        animator.SetBool("Kickflip", false);
-        isPerformingOllie = false;
+        animator.SetTrigger("Kickflip");
+        // Immediately set IsGrounded to false and indicate a trick is in progress
+        IsGrounded = false;
+        isPerformingTrick = true;
+        _coyoteTimer = coyoteTimeThreshold;
+
+        // Apply upward force for Kickflip
+        rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+
+        // Apply rotational force for Kickflip
+        rb.AddTorque(transform.forward * ollieForce * 2, ForceMode.Impulse); // Adjust torque as needed
+
+        // Start cooldown
+        StartTrickCooldown();
+
+        // Optional: Trigger animations, sounds, or particle effects here
+        Debug.Log("Kickflip performed!");
+
+        // Reset the trick state after a short delay
+        Invoke(nameof(ResetTrickState), 0.1f); // Adjust delay as needed
+    }
+
+    /// <summary>
+    /// Executes a Pop Shuv It by applying a rotational force.
+    /// </summary>
+    private void PerformPopShuvIt()
+    {
+        animator.SetTrigger("PopShuvIt");
+        // Immediately set IsGrounded to false and indicate a trick is in progress
+        IsGrounded = false;
+        isPerformingTrick = true;
+        _coyoteTimer = coyoteTimeThreshold;
+
+        // Apply upward force for Pop Shuv It
+        rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
+
+        // Apply rotational force for Pop Shuv It
+        rb.AddTorque(transform.up * ollieForce * 2, ForceMode.Impulse); // Adjust torque as needed
+
+        // Start cooldown
+        StartTrickCooldown();
+
+        // Optional: Trigger animations, sounds, or particle effects here
+        Debug.Log("Pop Shuv It performed!");
+
+        // Reset the trick state after a short delay
+        Invoke(nameof(ResetTrickState), 0.1f); // Adjust delay as needed
+    }
+
+    /// <summary>
+    /// Resets the trick state after a short delay.
+    /// </summary>
+    private void ResetTrickState()
+    {
+        isPerformingTrick = false;
     }
 }

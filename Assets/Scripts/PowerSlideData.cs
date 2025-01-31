@@ -11,4 +11,12 @@ public class PowerSlideData : MonoBehaviour
         ACCELERATE,
         BRAKE
     }
+    public enum Trick
+    {
+        None,
+        Ollie,
+        Kickflip,
+        PopShuvIt
+    }
+
 }
