@@ -652,7 +652,6 @@ public class SkaterBotController : MonoBehaviour
         animator.SetTrigger("Ollie");
         IsGrounded = false;
 
-        trickCount++; // Increment trick count
         StartTrickCooldown();
 
         Debug.Log("Ollie performed!");
