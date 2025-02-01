@@ -463,14 +463,13 @@ public class SkaterBotController : MonoBehaviour
     }
     private void HandleMovement(float currentTurnSpeed)
     {
-        Vector3 forwardDirection = transform.forward;
+        Vector3 forwardDirection = alignTransform.forward;
         Vector3 currentVelocity = rb.linearVelocity;
-
-        Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
-        rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z);
 
         if (IsGrounded)
         {
+            Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
+            rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z);
             // Apply acceleration
             if (isAccelerating)
             {
