@@ -2243,11 +2243,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   acceleration: 17
   maxSpeed: 30
-  turnSpeed: 100
-  driftTurnSpeed: 150
+  turnSpeed: 90
+  driftTurnSpeed: 140
   friction: 0.5
   brakeForce: 15
-  ollieForce: 5
+  ollieForce: 4
   trickCooldown: 1
   trickPreparationTime: 1
   trickCancelDelay: 0.1
