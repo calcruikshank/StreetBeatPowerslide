@@ -158,6 +158,10 @@ public class SkaterBotController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        UpdateBoost();
+
+        wasGrounded = IsGrounded;
+        AlignWithGround();
         // While drifting, update the drift timer and change the trail colors.
         if (isDrifting)
         {
@@ -178,10 +182,6 @@ public class SkaterBotController : MonoBehaviour
                 break;
         }
 
-        AlignWithGround();
-        UpdateBoost();
-
-        wasGrounded = IsGrounded;
     }
 
     /// <summary>
@@ -194,24 +194,36 @@ public class SkaterBotController : MonoBehaviour
 
         Ray ray = new Ray(transform.position + Vector3.up * alignmentOffset, Vector3.down);
         RaycastHit hit;
+
         if (Physics.Raycast(ray, out hit, groundRayDistance, groundLayerMask))
         {
             Vector3 groundNormal = hit.normal;
-            if (Vector3.Dot(groundNormal, Vector3.up) > 0.999f)
+
+            // Check if the ground is flat (normal is approximately up)
+            if (Vector3.Dot(groundNormal, Vector3.up) > 0.999f) // Adjust threshold as needed
             {
+                // On flat ground, reset the local Euler angles to zero
                 alignTransform.localEulerAngles = Vector3.zero;
             }
             else
             {
+                // On slopes, align with the ground normal
                 if (movementDirection.sqrMagnitude > 0.001f)
                 {
+                    // Calculate the desired forward direction based on movement
                     Vector3 desiredForward = Vector3.ProjectOnPlane(movementDirection, groundNormal).normalized;
+
+                    // Create a rotation that looks in the desired forward direction with the up vector aligned to the ground normal
                     Quaternion targetRotation = Quaternion.LookRotation(desiredForward, groundNormal);
+
+                    // Smoothly interpolate to the target rotation
                     Quaternion newRotation = Quaternion.Slerp(alignTransform.rotation, targetRotation, alignmentSpeed * Time.fixedDeltaTime);
+
                     alignTransform.rotation = newRotation;
                 }
                 else
                 {
+                    // If there's no movement, just align the up vector
                     Quaternion targetRotation = Quaternion.FromToRotation(alignTransform.up, groundNormal) * alignTransform.rotation;
                     Quaternion newRotation = Quaternion.Slerp(alignTransform.rotation, targetRotation, alignmentSpeed * Time.fixedDeltaTime);
                     alignTransform.rotation = newRotation;
@@ -219,6 +231,7 @@ public class SkaterBotController : MonoBehaviour
             }
         }
     }
+
 
     /// <summary>
     /// Handles input buffering for tricks and drifting.
@@ -394,20 +407,6 @@ public class SkaterBotController : MonoBehaviour
         Debug.DrawLine(p1, p5, color);
         Debug.DrawLine(p2, p6, color);
         Debug.DrawLine(p3, p7, color);
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = IsGrounded ? Color.green : Color.red;
-        Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
-        Gizmos.DrawWireCube(boxCenter, boxHalfExtents * 2);
-
-        if (alignTransform != null)
-        {
-            Gizmos.color = Color.blue;
-            Vector3 rayOrigin = alignTransform.position + Vector3.up * alignmentOffset;
-            Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * groundRayDistance);
-        }
     }
 
     private bool CheckColliderGround(RaycastHit col)
