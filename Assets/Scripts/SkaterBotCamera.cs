@@ -9,7 +9,7 @@ public class SkaterBotCamera : MonoBehaviour
     [SerializeField] private float maxZoomOut = 12f; // Slight zoom-out distance
     [SerializeField] private float minZoomOut = 10f; // Default zoom distance
     [SerializeField] private float smoothTime = 0.2f; // Smoothing time for camera movement
-
+    SkaterBotController skater;
     private Transform player;
     private Rigidbody playerRb;
     private Vector3 velocity = Vector3.zero; // Used for SmoothDamp
@@ -35,11 +35,12 @@ public class SkaterBotCamera : MonoBehaviour
         transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
 
         // Keep camera facing the player
-        transform.LookAt(player.position);
+        transform.LookAt(skater.alignTransform.transform.position);
     }
 
     public void FindPlayer(SkaterBotController skaterBot)
     {
+        skater = skaterBot;
         player = skaterBot.transform;
         playerRb = skaterBot.GetComponent<Rigidbody>();
     }

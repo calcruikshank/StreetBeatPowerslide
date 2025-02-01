@@ -144,7 +144,7 @@ public class SkaterBotController : MonoBehaviour
     /// Aligns the skater's orientation with the ground's normal using physics-based rotation.
     /// </summary>
     /// 
-    [SerializeField] Transform alignTransform;
+    [SerializeField] public Transform alignTransform;
     Vector3 movementDirection; // Assume this is set based on your input/movement logic
     private void AlignWithGround()
     {
