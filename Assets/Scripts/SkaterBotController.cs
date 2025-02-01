@@ -73,6 +73,16 @@ public class SkaterBotController : MonoBehaviour
 
     // Rotation Constraints
     [SerializeField] private Vector3 rotationConstraints = new Vector3(0f, 360f, 0f); // Limit rotation on specific axes if needed
+    [Header("Boost Settings")]
+    [SerializeField] private float boostAmount = 10f; // Boost added per trick
+    private float boostDecayRate = 5f; // How quickly the boost degrades
+    [SerializeField] private float maxBoost = 60f; // Maximum boost cap
+    [SerializeField] private float driftBoostMultiplier = 10f; // Boost per second of drifting
+
+    private float currentBoost = 0f; // Current boost value
+    private int trickCount = 0; // Number of tricks performed before landing
+    private float driftTime = 0f; // Time spent drifting
+    private bool hasLeftGround = false;
 
     private void Awake()
     {
@@ -104,6 +114,12 @@ public class SkaterBotController : MonoBehaviour
     {
         HandleBufferInput();
         CheckForGround();
+
+        // Track drift time
+        if (isDrifting)
+        {
+            driftTime += Time.deltaTime;
+        }
     }
 
     private void FixedUpdate()
@@ -319,26 +335,35 @@ public class SkaterBotController : MonoBehaviour
 
     private void CheckForGround()
     {
-        // Define the center of the box for the ground check
         Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
-
-        // Perform the box check
         bool hitGround = Physics.CheckBox(boxCenter, boxHalfExtents, transform.rotation, groundLayerMask, QueryTriggerInteraction.Ignore);
 
-        // Debug visualization
         DrawBox(boxCenter, boxHalfExtents * 2, hitGround ? Color.green : Color.red);
 
         if (hitGround && !isPerformingTrick)
         {
-            if (!IsGrounded)
+            // Only trigger landing if we were airborne (hasLeftGround is true)
+            if (!IsGrounded && hasLeftGround)
             {
                 animator.SetTrigger("Landing");
+
+                // Apply boost when landing after performing tricks
+                if (trickCount > 0)
+                {
+                    Vector3 boostDirection = rb.linearVelocity.normalized;
+                    rb.linearVelocity += boostDirection * (boostAmount * trickCount);
+                    currentBoost += boostAmount * trickCount;
+                    currentBoost = Mathf.Clamp(currentBoost, 0f, maxBoost);
+                    trickCount = 0; // Reset trick count after applying boost
+                }
             }
             IsGrounded = true;
             _coyoteTimer = 0f;
+            hasLeftGround = false; // Reset the flag since we are on the ground
         }
         else
         {
+            // Increase the coyote timer (and eventually mark as not grounded)
             if (_coyoteTimer < coyoteTimeThreshold)
             {
                 _coyoteTimer += Time.deltaTime;
@@ -347,8 +372,15 @@ public class SkaterBotController : MonoBehaviour
                     IsGrounded = false;
                 }
             }
+
+            // Mark that we have left the ground (airborne)
+            if (!hitGround)
+            {
+                hasLeftGround = true;
+            }
         }
     }
+
 
     private void DrawBox(Vector3 center, Vector3 size, Color color)
     {
@@ -421,15 +453,21 @@ public class SkaterBotController : MonoBehaviour
         yield return new WaitForSeconds(trickCooldown);
         trickOnCooldown = false;
     }
+    private void OnGUI()
+    {
+        GUIStyle style = new GUIStyle();
+        style.fontSize = 20;
+        style.normal.textColor = Color.white;
 
+        GUI.Label(new Rect(10, 10, 200, 50), $"Boost: {rb.linearVelocity.magnitude:F1}", style);
+    }
     private void HandleMovement(float currentTurnSpeed)
     {
         Vector3 forwardDirection = transform.forward;
-        Vector3 currentVelocity = rb.linearVelocity; // Changed from rb.linearVelocity to rb.velocity
+        Vector3 currentVelocity = rb.linearVelocity;
 
-        // Remove sideways movement (keep only forward direction)
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
-        rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z); // Preserve gravity
+        rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z);
 
         if (IsGrounded)
         {
@@ -442,17 +480,32 @@ public class SkaterBotController : MonoBehaviour
 
         // Clamp speed but preserve falling speed
         Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-        if (horizontalVelocity.magnitude > maxSpeed)
+        // Allow speed up to maxSpeed + currentBoost
+        if (horizontalVelocity.magnitude > maxSpeed + currentBoost)
         {
-            Vector3 clampedVelocity = horizontalVelocity.normalized * maxSpeed;
+            Vector3 clampedVelocity = horizontalVelocity.normalized * (maxSpeed + currentBoost);
             rb.linearVelocity = new Vector3(clampedVelocity.x, rb.linearVelocity.y, clampedVelocity.z);
         }
+
+        // Decay boost over time
+        if (currentBoost > 0f)
+        {
+            currentBoost -= boostDecayRate * Time.fixedDeltaTime;
+            currentBoost = Mathf.Max(currentBoost, 0f);
+        }
+
+        // REMOVED: The second clamp that resets speed to maxSpeed only.
+        // if (horizontalVelocity.magnitude > maxSpeed)
+        // {
+        //     Vector3 clampedVelocity = horizontalVelocity.normalized * maxSpeed;
+        //     rb.linearVelocity = new Vector3(clampedVelocity.x, rb.linearVelocity.y, clampedVelocity.z);
+        // }
 
         float turnAmount = inputMovement.x * currentTurnSpeed * Time.fixedDeltaTime;
 
         if (isDrifting)
         {
-            // **Fix: Only invert turning when drifting to the right**
+            // Only invert turning when drifting to the right
             float driftTurnInput = (driftDirection <= 0) ? -inputMovement.x : inputMovement.x;
             // Clamp turn input to only allow turning in the drift's original direction
             float clampedTurn = Mathf.Clamp(driftTurnInput, driftDirection * 0.3f, driftDirection * 1.0f);
@@ -480,7 +533,7 @@ public class SkaterBotController : MonoBehaviour
             pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
         }
 
-        // Smoothly transition **drift tilt** (drifting effect)
+        // Smoothly transition drift tilt (drifting effect)
         if (isDrifting)
         {
             if (IsGrounded)
@@ -502,6 +555,7 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
+
     private void HandleBraking()
     {
         rb.AddForce(-rb.linearVelocity.normalized * brakeForce, ForceMode.Acceleration);
@@ -510,31 +564,35 @@ public class SkaterBotController : MonoBehaviour
 
     private void StartDrifting()
     {
-        // Reset normal tilt
         pivotTiltZ = 0f;
-
-        // Apply tilt to pivot point
         Vector3 currentRotation = pivotPoint.localEulerAngles;
         pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
 
-        // Determine drift direction
         driftDirection = Mathf.Sign(inputMovement.x);
-        if (driftDirection == 0) driftDirection = 1f; // Default to right if no input
+        if (driftDirection == 0) driftDirection = 1f;
 
         isDrifting = true;
         state = State.Drifting;
-
-        // Set target drift angle
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
+
+        driftTime = 0f; // Reset drift time when starting a drift
     }
 
     private void StopDrifting()
     {
         isDrifting = false;
         state = State.Normal;
-
-        // Reset target drift angle
         driftTiltZ = 0f;
+
+        // Apply boost based on drift time
+        if (driftTime > 0f)
+        {
+            // Add boost to current velocity
+            Vector3 boostDirection = rb.linearVelocity.normalized;
+            rb.linearVelocity += boostDirection * (driftTime * driftBoostMultiplier);
+            currentBoost += driftTime * driftBoostMultiplier;
+            currentBoost = Mathf.Clamp(currentBoost, 0f, maxBoost);
+        }
 
         foreach (TrailRenderer trail in driftTrails)
         {
@@ -587,82 +645,57 @@ public class SkaterBotController : MonoBehaviour
         isPerformingTrick = true;
         _coyoteTimer = coyoteTimeThreshold;
 
-        // Apply upward force for Ollie
         if (IsGrounded)
         {
             rb.AddForce(Vector3.up * ollieForce * 1.5f, ForceMode.Impulse);
         }
         animator.SetTrigger("Ollie");
-        // Immediately set IsGrounded to false and indicate a trick is in progress
         IsGrounded = false;
 
-        // Start cooldown
+        trickCount++; // Increment trick count
         StartTrickCooldown();
 
-        // Optional: Trigger animations, sounds, or particle effects here
         Debug.Log("Ollie performed!");
-
-        // Reset the isPerformingTrick flag after a short delay to ensure accurate ground detection
-        Invoke(nameof(ResetTrickState), 0.02f); // Adjust delay as needed
+        Invoke(nameof(ResetTrickState), 0.02f);
     }
 
-    /// <summary>
-    /// Executes a Kickflip by applying an upward and rotational force.
-    /// </summary>
     private void PerformKickflip()
     {
         isPerformingTrick = true;
         _coyoteTimer = coyoteTimeThreshold;
-        // Apply upward force for Kickflip
+
         if (IsGrounded)
         {
             rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
         }
         animator.SetTrigger("Kickflip");
-        // Immediately set IsGrounded to false and indicate a trick is in progress
         IsGrounded = false;
 
-
-
-        // Start cooldown
+        trickCount++; // Increment trick count
         StartTrickCooldown();
 
-        // Optional: Trigger animations, sounds, or particle effects here
         Debug.Log("Kickflip performed!");
-
-        // Reset the trick state after a short delay
-        Invoke(nameof(ResetTrickState), 0.02f); // Adjust delay as needed
+        Invoke(nameof(ResetTrickState), 0.02f);
     }
 
-    /// <summary>
-    /// Executes a Pop Shuv It by applying a rotational force.
-    /// </summary>
     private void PerformPopShuvIt()
     {
         isPerformingTrick = true;
         _coyoteTimer = coyoteTimeThreshold;
-        // Apply upward force for Pop Shuv It
+
         if (IsGrounded)
         {
             rb.AddForce(Vector3.up * ollieForce, ForceMode.Impulse);
         }
         animator.SetTrigger("PopShuvIt");
-        // Immediately set IsGrounded to false and indicate a trick is in progress
         IsGrounded = false;
 
-
-        // Apply rotational force for Pop Shuv It
-
-        // Start cooldown
+        trickCount++; // Increment trick count
         StartTrickCooldown();
 
-        // Optional: Trigger animations, sounds, or particle effects here
         Debug.Log("Pop Shuv It performed!");
-
-        // Reset the trick state after a short delay
-        Invoke(nameof(ResetTrickState), 0.02f); // Adjust delay as needed
+        Invoke(nameof(ResetTrickState), 0.02f);
     }
-
     /// <summary>
     /// Resets the trick state after a short delay.
     /// </summary>
