@@ -23,7 +23,7 @@ public class SkaterBotController : MonoBehaviour
     private Vector2 inputMovement;
     private Vector2 rightStickInput;
 
-    [SerializeField] Transform pivotPointDrift;
+    [SerializeField] private Transform pivotPointDrift;
 
     private bool isAccelerating = false;
     private bool isDrifting = false;
@@ -31,9 +31,9 @@ public class SkaterBotController : MonoBehaviour
     public enum State { Normal, Braking, Drifting }
     public State state = State.Normal;
 
-    [SerializeField] Transform pivotPoint;
+    [SerializeField] private Transform pivotPoint;
 
-    [SerializeField] List<TrailRenderer> driftTrails;
+    [SerializeField] private List<TrailRenderer> driftTrails;
 
     private bool trickOnCooldown = false;
 
@@ -50,7 +50,7 @@ public class SkaterBotController : MonoBehaviour
 
     private bool isPerformingTrick = false;
 
-    [SerializeField] Animator animator;
+    [SerializeField] private Animator animator;
 
     // Drift Variables
     private float driftDirection = 0f;
@@ -59,35 +59,50 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float driftTiltSpeed = 1500f;
     private float driftTiltZ = 0f;
 
+    // Drift Boost Settings
+    [Header("Drift Boost Settings")]
+    private float driftBoostLevel1Threshold = 1f;  // Minimum drift time for boost level 1
+    private float driftBoostLevel2Threshold = 2f;  // Drift time for boost level 2
+    private float driftBoostLevel3Threshold = 3f;  // Drift time for boost level 3
+    [SerializeField] private float driftBoostIncrementMin = 10f;      // Points added for minimum drift boost
+    [SerializeField] private float driftBoostIncrementMid = 20f;      // Points added for mid-level drift boost
+    [SerializeField] private float driftBoostIncrementMax = 30f;      // Points added for maximum drift boost
+    [SerializeField] private float driftBoostForceMultiplier = 20f;   // Multiplier for the forward impulse from boost
+    private float driftTimer = 0f;
+
     // Trick Preparation Variables
     public bool preparedForTrick = false;
     private Coroutine trickPreparationCoroutine;
     private Coroutine trickCancelCoroutine;
 
-    // Ground Alignment Variables
+    // Ground Alignment Settings
     [Header("Ground Alignment Settings")]
     [SerializeField] private float groundRayDistance = 2f;
     [SerializeField] private float alignmentSpeed = 5f;
     [SerializeField] private float alignmentOffset = 0.5f;
     [SerializeField] private Vector3 rotationConstraints = new Vector3(0f, 360f, 0f);
 
-    [SerializeField] Transform alignTransform;
-    Vector3 movementDirection; // Used for aligning movement on slopes
+    [SerializeField] private Transform alignTransform;
+    private Vector3 movementDirection;
 
-    // Landing Boost Variables
+    // Landing Boost Settings (integrated with our flat boost system)
     [Header("Landing Boost Settings")]
-    // Extra speed per boost level (each landing adds +20 units per level)
     [SerializeField] private float boostBonusPerLevel = 20f;
-    // Duration (in seconds) the bonus remains at full strength before decaying
     [SerializeField] private float boostFullDuration = 1f;
-    // Rate at which the bonus decays (units per second)
-    [SerializeField] private float boostDecayRate = 10f;
-    // Current boost level (max 3)
-    private int boostLevel = 0;
-    // Active bonus added to maxSpeed
-    private float currentBoostBonus = 0f;
-    // Timer for the full bonus duration
-    private float boostTimer = 0f;
+    // (We now use the flat boost system below instead of discrete boost levels.)
+
+    // Flat Boost System Settings
+    [Header("Boost Settings")]
+    [SerializeField] private float trickBoostIncrement = 10f;    // Points added per trick (when done in air)
+    // These thresholds are for informational purposes and clamping.
+    [SerializeField] private float level1Threshold = 10f;  // e.g., 0–29 points is level 1 boost
+    [SerializeField] private float level2Threshold = 30f;  // 30–59 points is level 2 boost
+    [SerializeField] private float level3Threshold = 60f;  // 60 points is the maximum boost
+    [SerializeField] private float boostDecayRate = 10f;   // Points per second to decay (only when grounded)
+    private float currentBoostPoints = 0f;
+
+    // Accumulate boost points from air tricks here.
+    private float airTrickBoostPoints = 0f;
 
     // Prevent landing boost immediately after a trick
     private bool trickJustHappened = false;
@@ -110,6 +125,7 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
+
     private void Start()
     {
         if (GameManager.instance != null && GameManager.instance.skaterBotCamera != null)
@@ -119,6 +135,18 @@ public class SkaterBotController : MonoBehaviour
         else
         {
             Debug.LogWarning("GameManager or SkaterBotCamera not found.");
+        }
+
+        // Test: set all trail renderers to red.
+        foreach (TrailRenderer trail in driftTrails)
+        {
+            trail.material = new Material(Shader.Find("Particles/Alpha Blended"));
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(Color.red, 0f), new GradientColorKey(Color.red, 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
+            );
+            trail.colorGradient = gradient;
         }
     }
 
@@ -130,6 +158,13 @@ public class SkaterBotController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // While drifting, update the drift timer and change the trail colors.
+        if (isDrifting)
+        {
+            driftTimer += Time.fixedDeltaTime;
+            UpdateDriftTrailColors();
+        }
+
         switch (state)
         {
             case State.Normal:
@@ -146,7 +181,6 @@ public class SkaterBotController : MonoBehaviour
         AlignWithGround();
         UpdateBoost();
 
-        // Save the grounded state for the next frame
         wasGrounded = IsGrounded;
     }
 
@@ -191,7 +225,7 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void HandleBufferInput()
     {
-        // Handle drifting input
+        // Drifting input
         if (driftingPressed && !isDrifting)
         {
             StartDrifting();
@@ -326,7 +360,7 @@ public class SkaterBotController : MonoBehaviour
             }
         }
 
-        // Only trigger landing boost if we just landed and a trick wasn�t just performed.
+        // When landing (transitioning from air to ground) apply any accumulated air-trick boost.
         if (!previouslyGrounded && IsGrounded && !trickJustHappened)
         {
             OnLanding();
@@ -397,7 +431,6 @@ public class SkaterBotController : MonoBehaviour
 
     /// <summary>
     /// Handles movement including acceleration, turning, and clamping the speed.
-    /// The effective max speed is the base maxSpeed plus any active boost bonus.
     /// </summary>
     private void HandleMovement(float currentTurnSpeed)
     {
@@ -406,16 +439,14 @@ public class SkaterBotController : MonoBehaviour
         Vector3 forwardVelocity = Vector3.Project(currentVelocity, forwardDirection);
         rb.linearVelocity = new Vector3(forwardVelocity.x, rb.linearVelocity.y, forwardVelocity.z);
 
-        if (IsGrounded)
+        if (IsGrounded && isAccelerating)
         {
-            if (isAccelerating)
-            {
-                rb.AddForce(forwardDirection * acceleration, ForceMode.Acceleration);
-            }
+            rb.AddForce(forwardDirection * acceleration, ForceMode.Acceleration);
         }
 
         Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-        float effectiveMaxSpeed = maxSpeed + currentBoostBonus;
+        // Effective max speed increases with boost points (scaled by boostBonusPerLevel)
+        float effectiveMaxSpeed = maxSpeed + (currentBoostPoints / trickBoostIncrement) * boostBonusPerLevel;
         if (horizontalVelocity.magnitude > effectiveMaxSpeed)
         {
             Vector3 clampedVelocity = horizontalVelocity.normalized * effectiveMaxSpeed;
@@ -477,8 +508,12 @@ public class SkaterBotController : MonoBehaviour
             state = State.Normal;
     }
 
+    /// <summary>
+    /// Called when drifting starts. Resets the drift timer and sets initial trail colors.
+    /// </summary>
     private void StartDrifting()
     {
+        driftTimer = 0f;
         pivotTiltZ = 0f;
         Vector3 currentRotation = pivotPoint.localEulerAngles;
         pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
@@ -487,18 +522,96 @@ public class SkaterBotController : MonoBehaviour
         isDrifting = true;
         state = State.Drifting;
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
+
+        Color newColor = Color.blue;
+        foreach (TrailRenderer trail in driftTrails)
+        {
+            // Ensure you’re using a material instance.
+            trail.material = new Material(trail.material);
+            if (trail.material.HasProperty("_TintColor"))
+            {
+                trail.material.SetColor("_TintColor", newColor);
+            }
+
+            // Also set the gradient if needed.
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(newColor, 0f), new GradientColorKey(newColor, 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
+            );
+            trail.colorGradient = gradient;
+        }
+
+
     }
 
+    /// <summary>
+    /// Called when drifting ends. Calculates boost points based on drift duration and applies boost.
+    /// </summary>
     private void StopDrifting()
     {
+        if (driftTimer >= driftBoostLevel1Threshold)
+        {
+            float driftBoostPoints = 0f;
+            if (driftTimer >= driftBoostLevel3Threshold)
+                driftBoostPoints = driftBoostIncrementMax;
+            else if (driftTimer >= driftBoostLevel2Threshold)
+                driftBoostPoints = driftBoostIncrementMid;
+            else if (driftTimer >= driftBoostLevel1Threshold)
+                driftBoostPoints = driftBoostIncrementMin;
+
+            ApplyBoost(driftBoostPoints);
+            Debug.Log("Drift boost applied: Drift Points " + driftBoostPoints + ", Total Boost Points: " + currentBoostPoints);
+        }
+
+        driftTimer = 0f;
         isDrifting = false;
         state = State.Normal;
         driftTiltZ = 0f;
         foreach (TrailRenderer trail in driftTrails)
         {
             trail.emitting = false;
+            trail.startColor = Color.blue;
+            trail.endColor = Color.blue;
         }
     }
+
+    /// <summary>
+    /// Updates the drift trail colors based on how long the drift has been held.
+    /// </summary>
+    [SerializeField] Material level0DriftMat;
+    [SerializeField] Material level1DriftMat;
+    [SerializeField] Material level2DriftMat;
+    [SerializeField] Material level3DriftMat;
+
+    private void UpdateDriftTrailColors()
+    {
+        // Choose a material based on the drift timer.
+        Material selectedMat = level0DriftMat; // default material (e.g., blue)
+
+        if (driftTimer >= driftBoostLevel3Threshold)
+        {
+            selectedMat = level3DriftMat; // e.g., magenta
+        }
+        else if (driftTimer >= driftBoostLevel2Threshold)
+        {
+            selectedMat = level2DriftMat; // e.g., yellow
+        }
+        else if (driftTimer >= driftBoostLevel1Threshold)
+        {
+            selectedMat = level1DriftMat; // e.g., blue
+        }
+
+        // Apply the selected material to each TrailRenderer.
+        foreach (TrailRenderer trail in driftTrails)
+        {
+            // Optionally, if you want to avoid modifying a shared material, instantiate a new material.
+            // trail.material = new Material(selectedMat);
+            // Otherwise, assign the selected material directly:
+            trail.material = selectedMat;
+        }
+    }
+
 
     // Input Handlers
     private void OnLook(InputValue value)
@@ -548,9 +661,14 @@ public class SkaterBotController : MonoBehaviour
             rb.AddForce(Vector3.up * ollieForce * 1.5f, ForceMode.Impulse);
         }
         animator.SetTrigger("Ollie");
+        // Mark as airborne.
         IsGrounded = false;
         StartTrickCooldown();
         Debug.Log("Ollie performed!");
+
+        // Instead of applying boost immediately, accumulate air-trick boost.
+        airTrickBoostPoints += trickBoostIncrement;
+
         Invoke(nameof(ResetTrickState), 0.02f);
     }
 
@@ -566,6 +684,9 @@ public class SkaterBotController : MonoBehaviour
         IsGrounded = false;
         StartTrickCooldown();
         Debug.Log("Kickflip performed!");
+
+        airTrickBoostPoints += trickBoostIncrement;
+
         Invoke(nameof(ResetTrickState), 0.02f);
     }
 
@@ -581,11 +702,14 @@ public class SkaterBotController : MonoBehaviour
         IsGrounded = false;
         StartTrickCooldown();
         Debug.Log("Pop Shuv It performed!");
+
+        airTrickBoostPoints += trickBoostIncrement;
+
         Invoke(nameof(ResetTrickState), 0.02f);
     }
 
     /// <summary>
-    /// Resets the trick state and sets a flag to prevent an immediate landing boost.
+    /// Resets the trick state and prevents an immediate landing boost.
     /// </summary>
     private void ResetTrickState()
     {
@@ -601,43 +725,71 @@ public class SkaterBotController : MonoBehaviour
     }
 
     /// <summary>
-    /// Updates the landing boost bonus. Once the full bonus duration elapses, the bonus decays gradually.
+    /// Decays the current boost points only while grounded.
     /// </summary>
     private void UpdateBoost()
     {
-        if (boostTimer > 0)
+        if (IsGrounded && currentBoostPoints > 0)
         {
-            boostTimer -= Time.fixedDeltaTime;
-            if (boostTimer < 0)
-                boostTimer = 0;
+            currentBoostPoints -= boostDecayRate * Time.fixedDeltaTime;
+            if (currentBoostPoints < 0)
+                currentBoostPoints = 0;
         }
-        else
+        if (!IsGrounded && currentBoostPoints > 0)
         {
-            if (currentBoostBonus > 0)
-            {
-                currentBoostBonus -= boostDecayRate * Time.fixedDeltaTime;
-                if (currentBoostBonus < 0)
-                    currentBoostBonus = 0;
-                if (currentBoostBonus == 0)
-                {
-                    boostLevel = 0;
-                }
-            }
+            currentBoostPoints -= (boostDecayRate / 3) * Time.fixedDeltaTime;
+            if (currentBoostPoints < 0)
+                currentBoostPoints = 0;
         }
     }
 
     /// <summary>
-    /// Called when landing occurs (transition from airborne to grounded).
-    /// Increments boost level (up to 3), sets the bonus, and applies an immediate forward impulse.
+    /// Called when landing occurs. Applies any boost accumulated from air tricks.
     /// </summary>
     private void OnLanding()
     {
-        boostLevel = Mathf.Clamp(boostLevel + 1, 0, 3);
-        currentBoostBonus = boostLevel * boostBonusPerLevel;
-        boostTimer = boostFullDuration;
+        if (airTrickBoostPoints > 0)
+        {
+            ApplyBoost(airTrickBoostPoints);
+            Debug.Log("Landing boost applied from air tricks: " + airTrickBoostPoints + ", Total Boost Points: " + currentBoostPoints);
+            airTrickBoostPoints = 0f;
+        }
+    }
 
-        // Optionally, add an immediate forward impulse.
-        rb.linearVelocity += transform.forward * (boostBonusPerLevel * boostLevel);
-        Debug.Log("Landing boost applied: Level " + boostLevel + ", Bonus = " + currentBoostBonus);
+    /// <summary>
+    /// Adds boost points (clamped to the maximum threshold) and applies an immediate forward impulse
+    /// proportional to the points added.
+    /// </summary>
+    /// <param name="pointsToAdd">Flat boost points to add.</param>
+    private void ApplyBoost(float pointsToAdd)
+    {
+        float previousBoostPoints = currentBoostPoints;
+        currentBoostPoints = Mathf.Clamp(currentBoostPoints + pointsToAdd, 0, level3Threshold);
+        float pointsAdded = currentBoostPoints - previousBoostPoints;
+        if (pointsAdded > 0)
+        {
+            // The impulse is scaled relative to the trickBoostIncrement.
+            float impulseMultiplier = driftBoostForceMultiplier;
+            rb.linearVelocity += transform.forward * (impulseMultiplier * (pointsAdded / trickBoostIncrement));
+        }
+        Debug.Log("Boost applied: " + pointsAdded + " points added, Total Boost Points: " + currentBoostPoints);
+    }
+
+    // OnGUI: Visualize the boost meter on screen.
+    private void OnGUI()
+    {
+        // Define dimensions and position for the boost meter.
+        float meterWidth = 200f;
+        float meterHeight = 20f;
+        float x = 10f;
+        float y = Screen.height - meterHeight - 10f;
+
+        // Draw the background box.
+        GUI.Box(new Rect(x, y, meterWidth, meterHeight), "");
+
+        // Calculate the fill based on current boost points.
+        float fillPercentage = currentBoostPoints / level3Threshold;
+        // Draw the filled portion of the boost meter.
+        GUI.Box(new Rect(x, y, meterWidth * fillPercentage, meterHeight), "Boost: " + currentBoostPoints.ToString("F0"));
     }
 }

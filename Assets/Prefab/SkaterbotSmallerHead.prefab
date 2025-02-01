@@ -2268,12 +2268,28 @@ MonoBehaviour:
   animator: {fileID: 9127501251042354101}
   tiltSpeed: 100
   driftTiltSpeed: 1500
+  driftBoostIncrementMin: 10
+  driftBoostIncrementMid: 20
+  driftBoostIncrementMax: 30
+  driftBoostForceMultiplier: 20
   preparedForTrick: 0
   groundRayDistance: 2
   alignmentSpeed: 10
   alignmentOffset: 0.5
   rotationConstraints: {x: 0, y: 360, z: 0}
   alignTransform: {fileID: 853803966856592571}
+  boostBonusPerLevel: 20
+  boostFullDuration: 1
+  trickBoostIncrement: 10
+  level1Threshold: 10
+  level2Threshold: 30
+  level3Threshold: 60
+  boostDecayRate: 5
+  trickLandingDelay: 0.2
+  level0DriftMat: {fileID: 2100000, guid: c23ef0520bc5e484b94a127667018e72, type: 2}
+  level1DriftMat: {fileID: 2100000, guid: 0f392515d0d5c094f86ed146a6dd2970, type: 2}
+  level2DriftMat: {fileID: 2100000, guid: 0ac04c70422a814409064f5725069b13, type: 2}
+  level3DriftMat: {fileID: 2100000, guid: 91ac6f3dfaed22442a1ebbe0ddaf119d, type: 2}
   driftingPressed: 0
 --- !u!54 &5605830709446707197
 Rigidbody:
