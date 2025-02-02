@@ -171,23 +171,25 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void ApplySignificantDownforce()
     {
-        // Only do this when our collider indicates ground contact.
+        // Only apply downforce when the collider indicates ground contact.
         Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
 
         // Calculate a short ray distance (half the vertical size of the collider check)
         float rayDistance = boxHalfExtents.y * downforceRayMultiplier;
 
-        // Shoot a ray downward from the box center.
-        if (Physics.Raycast(boxCenter, Vector3.down, rayDistance, groundLayerMask))
+        // Cast a ray downward from the box center.
+        if (Physics.Raycast(boxCenter, Vector3.down, out RaycastHit hit, rayDistance, groundLayerMask))
         {
-            // The ray missed ground—even though the box is colliding.
-            // Apply a strong downward force.
-            rb.AddForce(Vector3.down * significantDownforce, ForceMode.Acceleration);
+            // Instead of always using Vector3.down, get the ground normal from the hit
+            // and apply force in the direction opposite to that normal.
+            Vector3 downforceDirection = -hit.normal;
+            rb.AddForce(downforceDirection * significantDownforce, ForceMode.Acceleration);
         }
-    }/// <summary>
-     /// Rotates the board’s pivot toward a 90° tilt (left or right) when braking,
-     /// similar to the drift tilt logic.
-     /// </summary>
+    }
+
+    /// Rotates the board’s pivot toward a 90° tilt (left or right) when braking,
+    /// similar to the drift tilt logic.
+    /// </summary>
     private void HandleBrakingTurn()
     {
         float brakeTiltZ = 90;

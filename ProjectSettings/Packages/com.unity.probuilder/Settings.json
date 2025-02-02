@@ -114,12 +114,12 @@
             {
                 "type": "System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
                 "key": "ShapeBuilder.ActiveShapeIndex",
-                "value": "{\"m_Value\":1}"
+                "value": "{\"m_Value\":9}"
             },
             {
                 "type": "UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
                 "key": "ShapeBuilder.LastSize.Torus",
-                "value": "{\"m_Value\":{\"x\":41.1240234375,\"y\":7.5073370933532719,\"z\":-44.71214294433594}}"
+                "value": "{\"m_Value\":{\"x\":407.8360595703125,\"y\":80.7149429321289,\"z\":-154.81103515625}}"
             },
             {
                 "type": "UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
