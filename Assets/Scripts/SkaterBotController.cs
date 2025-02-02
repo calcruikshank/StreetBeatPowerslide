@@ -11,7 +11,7 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float turnSpeed = 100f;
     [SerializeField] private float driftTurnSpeed = 200f; // Increased turn speed during drift
     [SerializeField] private float friction = 0.5f;
-    private float brakeForce = 80f;
+    private float brakeForce = 40f;
 
     [Header("Trick Settings")]
     [SerializeField] private float ollieForce = 5f; // Adjust as needed
@@ -192,13 +192,14 @@ public class SkaterBotController : MonoBehaviour
         }
         float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, brakeTiltZ, driftTiltSpeed * Time.deltaTime);
         pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+
+        pivotTiltZ = 0f;
+        Vector3 currentRotation = pivotPoint.localEulerAngles;
+        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
     }
 
     private void HandleBraking()
     {
-        pivotTiltZ = 0f;
-        Vector3 currentRotation = pivotPoint.localEulerAngles;
-        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
         rb.AddForce(-rb.linearVelocity.normalized * brakeForce, ForceMode.Acceleration);
         if (rb.linearVelocity.magnitude < 1f)
             state = State.Normal;
@@ -265,11 +266,14 @@ public class SkaterBotController : MonoBehaviour
     {
         if (brakingPressed)
         {
-            float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 90, driftTiltSpeed * Time.deltaTime);
-            pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+            if (!isDrifting)
+            {
+                float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 90, driftTiltSpeed * Time.deltaTime);
+                pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+            }
         }
         // If braking is pressed (and not drifting), set state to braking.
-        if (brakingPressed && !isDrifting && IsGrounded)
+        if (brakingPressed && !isDrifting && IsGrounded && state != State.Drifting)
         {
             state = State.Braking;
         }
@@ -623,6 +627,10 @@ public class SkaterBotController : MonoBehaviour
         {
             if (IsGrounded)
             {
+                if (brakingPressed)
+                {
+                    HandleBraking();
+                }
                 foreach (TrailRenderer trail in driftTrails)
                 {
                     trail.emitting = true;
@@ -630,6 +638,8 @@ public class SkaterBotController : MonoBehaviour
             }
             float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, driftTiltZ, driftTiltSpeed * Time.deltaTime);
             pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+
+
         }
         if (!IsGrounded)
         {
