@@ -83,6 +83,9 @@ public class SkaterBotController : MonoBehaviour
     private int trickCount = 0; // Number of tricks performed before landing
     private float driftTime = 0f; // Time spent drifting
     private bool hasLeftGround = false;
+    [Header("Downforce Settings")]
+    [SerializeField] private float downforceRayMultiplier = 0.5f; // Multiplier for ray distance (half the collider height)
+    private float significantDownforce = 50f;   // Force applied when the ray doesn't hit ground
 
     private void Awake()
     {
@@ -137,7 +140,34 @@ public class SkaterBotController : MonoBehaviour
                 break;
         }
 
-        AlignWithGround(); // Move alignment to FixedUpdate for physics consistency
+        AlignWithGround(); // Keep the board aligned with slopes
+
+        // Only apply downforce when grounded and not performing a trick
+        if (IsGrounded && !isPerformingTrick)
+        {
+            ApplySignificantDownforce();
+        }
+    }
+
+    /// <summary>
+    /// Casts a short ray down from the collider’s center (using boxOffset)
+    /// and if it doesn’t hit the ground, applies significant downforce to keep the board stuck.
+    /// </summary>
+    private void ApplySignificantDownforce()
+    {
+        // Only do this when our collider indicates ground contact.
+        Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
+
+        // Calculate a short ray distance (half the vertical size of the collider check)
+        float rayDistance = boxHalfExtents.y * downforceRayMultiplier;
+
+        // Shoot a ray downward from the box center.
+        if (Physics.Raycast(boxCenter, Vector3.down, rayDistance, groundLayerMask))
+        {
+            // The ray missed ground—even though the box is colliding.
+            // Apply a strong downward force.
+            rb.AddForce(Vector3.down * significantDownforce, ForceMode.Acceleration);
+        }
     }
 
     /// <summary>
@@ -629,6 +659,16 @@ public class SkaterBotController : MonoBehaviour
     private void OnJumpReleased(InputValue value)
     {
         driftingPressed = false;
+    }
+    public bool brakingPressed;
+    private void OnB(InputValue value)
+    {
+        brakingPressed = true;
+    }
+
+    private void OnBReleased(InputValue value)
+    {
+        brakingPressed = false;
     }
 
     public float GetTurnInput()
