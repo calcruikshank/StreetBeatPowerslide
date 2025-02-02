@@ -11,7 +11,7 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float turnSpeed = 100f;
     [SerializeField] private float driftTurnSpeed = 200f; // Increased turn speed during drift
     [SerializeField] private float friction = 0.5f;
-    [SerializeField] private float brakeForce = 80f;
+    private float brakeForce = 80f;
 
     [Header("Trick Settings")]
     [SerializeField] private float ollieForce = 5f; // Adjust as needed
@@ -86,6 +86,9 @@ public class SkaterBotController : MonoBehaviour
     [Header("Downforce Settings")]
     [SerializeField] private float downforceRayMultiplier = 0.5f; // Multiplier for ray distance (half the collider height)
     private float significantDownforce = 50f;   // Force applied when the ray doesn't hit ground
+    [Header("Braking Turn Settings")]
+    [SerializeField] private float brakingTurnSpeed = 300f; // Speed at which the board rotates during braking
+    [SerializeField] private float brakingTiltAngle = 90f;    // Target tilt angle (in degrees) for a 90° turn
 
     private void Awake()
     {
@@ -127,13 +130,17 @@ public class SkaterBotController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Handle state-based movement.
         switch (state)
         {
             case State.Normal:
                 HandleMovement(turnSpeed);
                 break;
             case State.Braking:
+                // Call braking logic.
                 HandleBraking();
+                // Also handle a 90° braking turn.
+                HandleBrakingTurn();
                 break;
             case State.Drifting:
                 HandleMovement(driftTurnSpeed);
@@ -148,6 +155,7 @@ public class SkaterBotController : MonoBehaviour
             ApplySignificantDownforce();
         }
     }
+
 
     /// <summary>
     /// Casts a short ray down from the collider’s center (using boxOffset)
@@ -168,6 +176,32 @@ public class SkaterBotController : MonoBehaviour
             // Apply a strong downward force.
             rb.AddForce(Vector3.down * significantDownforce, ForceMode.Acceleration);
         }
+    }/// <summary>
+     /// Rotates the board’s pivot toward a 90° tilt (left or right) when braking,
+     /// similar to the drift tilt logic.
+     /// </summary>
+    private void HandleBrakingTurn()
+    {
+        float brakeTiltZ = 90;
+        if (IsGrounded)
+        {
+            foreach (TrailRenderer trail in driftTrails)
+            {
+                trail.emitting = true;
+            }
+        }
+        float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, brakeTiltZ, driftTiltSpeed * Time.deltaTime);
+        pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+    }
+
+    private void HandleBraking()
+    {
+        pivotTiltZ = 0f;
+        Vector3 currentRotation = pivotPoint.localEulerAngles;
+        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
+        rb.AddForce(-rb.linearVelocity.normalized * brakeForce, ForceMode.Acceleration);
+        if (rb.linearVelocity.magnitude < 1f)
+            state = State.Normal;
     }
 
     /// <summary>
@@ -229,6 +263,24 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void HandleBufferInput()
     {
+        if (brakingPressed)
+        {
+            float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 90, driftTiltSpeed * Time.deltaTime);
+            pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+        }
+        // If braking is pressed (and not drifting), set state to braking.
+        if (brakingPressed && !isDrifting && IsGrounded)
+        {
+            state = State.Braking;
+        }
+        if (state == State.Braking && !IsGrounded || state == State.Braking && _coyoteTimer > 0)
+        {
+            state = State.Normal;
+        }
+        if (!brakingPressed)
+        {
+            state = State.Normal;
+        }
         // Handle drifting input
         if (driftingPressed && !isDrifting)
         {
@@ -558,8 +610,12 @@ public class SkaterBotController : MonoBehaviour
             float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f);
             pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
             pivotPoint.localEulerAngles = new Vector3(pivotPoint.localEulerAngles.x, pivotPoint.localEulerAngles.y, pivotTiltZ);
-            float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 0, driftTiltSpeed * Time.deltaTime);
-            pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+
+            if (!brakingPressed)
+            {
+                float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 0, driftTiltSpeed * Time.deltaTime);
+                pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+            }
         }
 
         // Smoothly transition drift tilt (drifting effect)
@@ -584,12 +640,6 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
-
-    private void HandleBraking()
-    {
-        rb.AddForce(-rb.linearVelocity.normalized * brakeForce, ForceMode.Acceleration);
-        if (rb.linearVelocity.magnitude < 1f) state = State.Normal;
-    }
 
     private void StartDrifting()
     {
