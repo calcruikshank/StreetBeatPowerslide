@@ -2075,6 +2075,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   transformToUp: {fileID: 7638390279427633494}
+  boardUpToUp: {fileID: 7940505605438872245}
+  skaterToUp: {fileID: 4753187464518247141}
 --- !u!1 &6859705269587466429
 GameObject:
   m_ObjectHideFlags: 0
@@ -2246,7 +2248,6 @@ MonoBehaviour:
   turnSpeed: 90
   driftTurnSpeed: 140
   friction: 0.5
-  brakeForce: 15
   ollieForce: 4
   trickCooldown: 1
   trickPreparationTime: 1
@@ -2260,6 +2261,7 @@ MonoBehaviour:
   - {fileID: 1685272663449187694}
   - {fileID: 3923754132856623832}
   coyoteTimeThreshold: 0.2
+  _coyoteTimer: 0
   boxHalfExtents: {x: 0.5, y: 0.1, z: 0.5}
   boxOffset: {x: 0, y: -0.1, z: 0}
   groundLayerMask:
@@ -2276,8 +2278,12 @@ MonoBehaviour:
   boostAmount: 10
   maxBoost: 60
   driftBoostMultiplier: 5
+  downforceRayMultiplier: 0.5
+  brakingTurnSpeed: 300
+  brakingTiltAngle: 90
   alignTransform: {fileID: 853803966856592571}
   driftingPressed: 0
+  brakingPressed: 0
 --- !u!54 &5605830709446707197
 Rigidbody:
   m_ObjectHideFlags: 0

@@ -41,7 +41,7 @@ public class SkaterBotController : MonoBehaviour
     [SerializeField] private float coyoteTimeThreshold = 0.2f;
 
     private Collider _collider;
-    private float _coyoteTimer;
+    public float _coyoteTimer;
     public bool IsGrounded { get; private set; }
 
     [Header("Ground Check Settings")]

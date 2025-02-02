@@ -7,7 +7,15 @@ public class AlwaysFaceUp : MonoBehaviour
     [SerializeField] SkaterBotController skaterToUp;
     private void Update()
     {
-        // Preserve forward direction but keep up aligned to world up
-        transform.rotation = Quaternion.LookRotation(transform.forward, transformToUp.up);
+
+        if (skaterToUp.IsGrounded && skaterToUp._coyoteTimer <= 0)
+        {
+            // Preserve forward direction but keep up aligned to world up
+            transform.rotation = Quaternion.LookRotation(transform.forward, transformToUp.up);
+        }
+        if (!skaterToUp.IsGrounded || skaterToUp._coyoteTimer >= 0)
+        {
+            transform.rotation = Quaternion.LookRotation(transform.forward, boardUpToUp.up);
+        }
     }
 }
