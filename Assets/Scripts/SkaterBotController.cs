@@ -118,6 +118,13 @@ public class SkaterBotController : MonoBehaviour
 
     private void Update()
     {
+        // If a gamepad is connected, treat it as if the RMB is held down.
+        if (Gamepad.current != null)
+        {
+            rmbPresssed = true;
+        }
+
+        // Continue with the rest of your Update logic
         HandleBufferInput();
         CheckForGround();
 
@@ -127,6 +134,7 @@ public class SkaterBotController : MonoBehaviour
             driftTime += Time.deltaTime;
         }
     }
+
 
     private void FixedUpdate()
     {
@@ -262,8 +270,10 @@ public class SkaterBotController : MonoBehaviour
     /// <summary>
     /// Handles the input buffering for initiating and executing tricks.
     /// </summary>
+    /// 
     private void HandleBufferInput()
     {
+        // Existing braking and drifting code…
         if (brakingPressed)
         {
             if (!isDrifting)
@@ -272,12 +282,11 @@ public class SkaterBotController : MonoBehaviour
                 pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
             }
         }
-        // If braking is pressed (and not drifting), set state to braking.
         if (brakingPressed && !isDrifting && IsGrounded && state != State.Drifting)
         {
             state = State.Braking;
         }
-        if (state == State.Braking && !IsGrounded || state == State.Braking && _coyoteTimer > 0)
+        if (state == State.Braking && (!IsGrounded || _coyoteTimer > 0))
         {
             state = State.Normal;
         }
@@ -285,7 +294,8 @@ public class SkaterBotController : MonoBehaviour
         {
             state = State.Normal;
         }
-        // Handle drifting input
+
+        // Handle drifting input.
         if (driftingPressed && !isDrifting)
         {
             StartDrifting();
@@ -295,72 +305,85 @@ public class SkaterBotController : MonoBehaviour
             StopDrifting();
         }
 
-        // Handle Trick Preparation and Execution
-        if (!preparedForTrick && !trickOnCooldown && !isPerformingTrick)
+        // --- NEW: Check if the right mouse button is held ---
+        if (rmbPresssed)
         {
-            // Detect when the right stick is pressed down (e.g., y < -0.5)
-            if (rightStickInput.y < -0.5f)
+            // Handle Trick Preparation and Execution only if RMB is held.
+            if (!preparedForTrick && !trickOnCooldown && !isPerformingTrick)
             {
-                preparedForTrick = true;
-                animator.SetTrigger("PreparedForTrick");
-                Debug.Log("Prepared for Trick!");
-
-                // Start a coroutine to handle trick preparation timeout
-                if (trickPreparationCoroutine != null)
+                // Detect when the right stick is pressed down (e.g., y < -0.5)
+                if (rightStickInput.y < -0.5f)
                 {
-                    StopCoroutine(trickPreparationCoroutine);
+                    preparedForTrick = true;
+                    animator.SetTrigger("PreparedForTrick");
+                    Debug.Log("Prepared for Trick!");
+
+                    // Start a coroutine to handle trick preparation timeout
+                    if (trickPreparationCoroutine != null)
+                    {
+                        StopCoroutine(trickPreparationCoroutine);
+                    }
+                    trickPreparationCoroutine = StartCoroutine(TrickPreparationTimer());
                 }
-                trickPreparationCoroutine = StartCoroutine(TrickPreparationTimer());
+            }
+            else if (preparedForTrick && !isPerformingTrick)
+            {
+                // Detect if the stick has been flicked in a direction
+                if (rightStickInput.magnitude >= 0.5f && rightStickInput.y >= -0.5f)
+                {
+                    if (rightStickInput.x > 0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
+                    {
+                        // Right Flick - Kickflip
+                        if (!isPerformingTrick)
+                        {
+                            PerformKickflip();
+                            ResetTrickPreparation();
+                        }
+                    }
+                    else if (rightStickInput.x < -0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
+                    {
+                        // Left Flick - Pop Shuv It
+                        if (!isPerformingTrick)
+                        {
+                            PerformPopShuvIt();
+                            ResetTrickPreparation();
+                        }
+                    }
+                    else if (rightStickInput.y > 0.5f)
+                    {
+                        // Up Flick - Ollie
+                        if (!isPerformingTrick && IsGrounded)
+                        {
+                            PerformOllie();
+                            ResetTrickPreparation();
+                        }
+                    }
+                    else
+                    {
+                        // Ambiguous direction; optionally, provide feedback or handle as needed.
+                    }
+                }
+                else if (rightStickInput.magnitude < 0.5f)
+                {
+                    // Stick returned to center without a flick; start cancel timer
+                    if (trickCancelCoroutine == null)
+                    {
+                        trickCancelCoroutine = StartCoroutine(TrickCancelTimer());
+                    }
+                }
             }
         }
-        else if (preparedForTrick && !isPerformingTrick)
+        else
         {
-            // Detect if the stick has been flicked in a direction
-            if (rightStickInput.magnitude >= 0.5f && rightStickInput.y >= -0.5f)
+            // If the right mouse button is not held, cancel any trick preparation.
+            if (preparedForTrick)
             {
-                if (rightStickInput.x > 0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
-                {
-                    // Right Flick - Kickflip
-                    if (!isPerformingTrick)
-                    {
-                        PerformKickflip();
-                        ResetTrickPreparation();
-                    }
-                }
-                else if (rightStickInput.x < -0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
-                {
-                    // Left Flick - Pop Shuv It
-                    if (!isPerformingTrick)
-                    {
-                        PerformPopShuvIt();
-                        ResetTrickPreparation();
-                    }
-                }
-                else if (rightStickInput.y > 0.5f)
-                {
-                    // Up Flick - Ollie
-                    if (!isPerformingTrick && IsGrounded)
-                    {
-                        PerformOllie();
-                        ResetTrickPreparation();
-                    }
-                }
-                else
-                {
-                    // Ambiguous direction; do not perform any trick
-                    // Optionally, provide feedback or handle as needed
-                }
-            }
-            else if (rightStickInput.magnitude < 0.5f)
-            {
-                // Stick returned to center without a flick; start cancel timer
-                if (trickCancelCoroutine == null)
-                {
-                    trickCancelCoroutine = StartCoroutine(TrickCancelTimer());
-                }
+                ResetTrickPreparation();
+                Debug.Log("RMB not held, trick preparation cancelled.");
             }
         }
     }
+
 
     /// <summary>
     /// Coroutine to handle the trick preparation timer.
@@ -730,6 +753,17 @@ public class SkaterBotController : MonoBehaviour
     {
         brakingPressed = false;
     }
+    public bool rmbPresssed;
+    private void OnRMB(InputValue value)
+    {
+        rmbPresssed = true;
+    }
+
+    private void OnRMBReleased(InputValue value)
+    {
+        rmbPresssed = false;
+    }
+
 
     public float GetTurnInput()
     {
