@@ -545,7 +545,7 @@
                 {
                     "name": "",
                     "id": "f3fbb6ab-6c57-4fe8-84af-7f604743ca3f",
-                    "path": "<Mouse>/rightButton",
+                    "path": "<Keyboard>/shift",
                     "interactions": "Press",
                     "processors": "",
                     "groups": "",
@@ -578,7 +578,7 @@
                 {
                     "name": "",
                     "id": "c0c8d037-3a5b-4262-a9de-953981e2295f",
-                    "path": "<Mouse>/rightButton",
+                    "path": "<Keyboard>/shift",
                     "interactions": "Press(behavior=1)",
                     "processors": "",
                     "groups": "",
