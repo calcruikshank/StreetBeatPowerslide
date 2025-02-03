@@ -493,6 +493,8 @@ public class SkaterBotController : MonoBehaviour
             {
                 animator.SetTrigger("Landing");
 
+                PlayComboClipBasedOnBoost();
+
                 // Optionally play a tail-slap or landing sound
                 if (sfxSource != null && tailSlapClip != null)
                 {
@@ -740,11 +742,7 @@ public class SkaterBotController : MonoBehaviour
             trail.emitting = false;
         }
 
-        // If you want a "drift stop" or "grind start" SFX:
-        if (sfxSource != null && grindStartClip != null)
-        {
-            sfxSource.PlayOneShot(grindStartClip);
-        }
+        PlayComboClipBasedOnBoost();
     }
 
     // Input Handlers
@@ -825,9 +823,9 @@ public class SkaterBotController : MonoBehaviour
 
         // If you want the Ollie also to use the combo system, call PlayComboClipBasedOnBoost();
         // otherwise, just play a dedicated Ollie SFX:
-        if (sfxSource != null && ollieClip != null)
+        if (sfxSource != null && tailSlapClip != null)
         {
-            sfxSource.PlayOneShot(ollieClip);
+            sfxSource.PlayOneShot(tailSlapClip);
         }
         // Or you could do: PlayComboClipBasedOnBoost();
 
@@ -850,11 +848,13 @@ public class SkaterBotController : MonoBehaviour
         IsGrounded = false;
 
         // Instead of always playing tailSlapClip, let's do combos based on boost:
-        PlayComboClipBasedOnBoost();
 
         trickCount++;
         StartTrickCooldown();
-
+        if (sfxSource != null && tailSlapClip != null)
+        {
+            sfxSource.PlayOneShot(tailSlapClip);
+        }
         Debug.Log("Kickflip performed!");
         Invoke(nameof(ResetTrickState), 0.02f);
     }
@@ -872,11 +872,13 @@ public class SkaterBotController : MonoBehaviour
         IsGrounded = false;
 
         // Again, use the combos based on boost:
-        PlayComboClipBasedOnBoost();
 
         trickCount++;
         StartTrickCooldown();
-
+        if (sfxSource != null && tailSlapClip != null)
+        {
+            sfxSource.PlayOneShot(tailSlapClip);
+        }
         Debug.Log("Pop Shuv It performed!");
         Invoke(nameof(ResetTrickState), 0.02f);
     }
