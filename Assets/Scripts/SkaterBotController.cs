@@ -46,7 +46,7 @@ public class SkaterBotController : MonoBehaviour
 
     [Header("Ground Check Settings")]
     [SerializeField] private Vector3 boxHalfExtents = new Vector3(0.5f, 0.1f, 0.5f);
-    [SerializeField] private Vector3 boxOffset = new Vector3(0, -0.3f, 0); // Increased from -0.1f to -0.3f
+    [SerializeField] private Vector3 boxOffset = new Vector3(0, -0.3f, 0);
     [SerializeField] private LayerMask groundLayerMask;
 
     private bool isPerformingTrick = false; // Flag to indicate if a trick is in progress
@@ -65,51 +65,60 @@ public class SkaterBotController : MonoBehaviour
     private Coroutine trickPreparationCoroutine;
     private Coroutine trickCancelCoroutine;
 
-    // New Variables for Ground Alignment
+    // Ground Alignment
     [Header("Ground Alignment Settings")]
-    [SerializeField] private float groundRayDistance = 2f; // Distance to cast the ray
-    [SerializeField] private float alignmentSpeed = 5f; // Speed of alignment rotation
-    [SerializeField] private float alignmentOffset = 0.5f; // Offset above the ground to cast the ray
+    [SerializeField] private float groundRayDistance = 2f;
+    [SerializeField] private float alignmentSpeed = 5f;
+    [SerializeField] private float alignmentOffset = 0.5f;
 
-    // Rotation Constraints
-    [SerializeField] private Vector3 rotationConstraints = new Vector3(0f, 360f, 0f); // Limit rotation on specific axes if needed
+    [SerializeField] private Vector3 rotationConstraints = new Vector3(0f, 360f, 0f);
 
+    // Boost Settings
     [Header("Boost Settings")]
-    [SerializeField] private float boostAmount = 10f; // Boost added per trick
-    private float boostDecayRate = 5f; // How quickly the boost degrades
-    [SerializeField] private float maxBoost = 60f; // Maximum boost cap
-    [SerializeField] private float driftBoostMultiplier = 10f; // Boost per second of drifting
+    [SerializeField] private float boostAmount = 10f;
+    private float boostDecayRate = 5f;
+    [SerializeField] private float maxBoost = 60f;
+    [SerializeField] private float driftBoostMultiplier = 10f;
 
-    private float currentBoost = 0f; // Current boost value
-    private int trickCount = 0; // Number of tricks performed before landing
-    private float driftTime = 0f; // Time spent drifting
+    private float currentBoost = 0f;
+    private int trickCount = 0;
+    private float driftTime = 0f;
     private bool hasLeftGround = false;
 
     [Header("Downforce Settings")]
-    [SerializeField] private float downforceRayMultiplier = 0.5f; // Multiplier for ray distance (half the collider height)
-    private float significantDownforce = 50f;   // Force applied when the ray doesn't hit ground
+    [SerializeField] private float downforceRayMultiplier = 0.5f;
+    private float significantDownforce = 50f;
 
     [Header("Braking Turn Settings")]
-    [SerializeField] private float brakingTurnSpeed = 300f; // Speed at which the board rotates during braking
-    [SerializeField] private float brakingTiltAngle = 90f;    // Target tilt angle (in degrees) for a 90° turn
+    [SerializeField] private float brakingTurnSpeed = 300f;
+    [SerializeField] private float brakingTiltAngle = 90f;
 
-    // AUDIO: Add references for AudioSource(s) and AudioClip(s)
+    // AUDIO
     [Header("Audio References")]
-    AudioSource sfxSource;      // For one-shot SFX (ollies, flips, etc.)
-    AudioSource musicSource;    // For background/looping audio (optional)
+    AudioSource sfxSource;      // For one-shot SFX
+    AudioSource musicSource;    // For background/looping audio
 
     // Drag your clips in from the Inspector
     [SerializeField] private AudioClip mainThemeClip;
+
     [SerializeField] private AudioClip ollieClip;
     [SerializeField] private AudioClip tailSlapClip;
-    [SerializeField] private AudioClip combo1Clip;       // e.g. Kickflip SFX
-    [SerializeField] private AudioClip combo2Clip;       // e.g. PopShuvIt SFX
+
+    // Existing "combo" clips
+    [SerializeField] private AudioClip combo1Clip; // Possibly your "lowest boost" combo
+    [SerializeField] private AudioClip combo2Clip; // ...
+    // NEW: Add references for combo3 and combo4
+    [SerializeField] private AudioClip combo3Clip;
+    [SerializeField] private AudioClip combo4Clip;
+
     [SerializeField] private AudioClip grindStartClip;
     [SerializeField] private AudioClip grindLoopClip;
     [SerializeField] private AudioClip turn1Clip;
     [SerializeField] private AudioClip turn2Clip;
     [SerializeField] private AudioClip turn3Clip;
-    // ...Add any others you want similarly (Menu-Remix, etc.)
+
+    [SerializeField] public Transform alignTransform;
+    Vector3 movementDirection;
 
     private void Awake()
     {
@@ -123,6 +132,8 @@ public class SkaterBotController : MonoBehaviour
         {
             Debug.LogWarning("Collider component missing on SkaterBot.");
         }
+
+        // Get references to the audio sources from the GameManager (if that’s how your project is set up):
         sfxSource = GameManager.instance.sfxSource;
         musicSource = GameManager.instance.musicSource;
     }
@@ -167,7 +178,7 @@ public class SkaterBotController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Handle state-based movement.
+        // Handle state-based movement
         switch (state)
         {
             case State.Normal:
@@ -182,7 +193,7 @@ public class SkaterBotController : MonoBehaviour
                 break;
         }
 
-        AlignWithGround(); // Keep the board aligned with slopes
+        AlignWithGround();
 
         // Only apply downforce when grounded and not performing a trick
         if (IsGrounded && !isPerformingTrick)
@@ -191,9 +202,36 @@ public class SkaterBotController : MonoBehaviour
         }
     }
 
+    // ------------------------------------------------
+    //  HELPER: Plays a "combo" clip based on currentBoost
+    // ------------------------------------------------
+    private void PlayComboClipBasedOnBoost()
+    {
+        if (sfxSource == null) return; // Safety check
+
+        // Adjust thresholds or ranges as you like:
+        if (currentBoost < 10f)
+        {
+            // Lowest-level combo
+            if (combo1Clip) sfxSource.PlayOneShot(combo1Clip);
+        }
+        else if (currentBoost < 20f)
+        {
+            if (combo2Clip) sfxSource.PlayOneShot(combo2Clip);
+        }
+        else if (currentBoost < 30f)
+        {
+            if (combo3Clip) sfxSource.PlayOneShot(combo3Clip);
+        }
+        else
+        {
+            // Highest-level combo
+            if (combo4Clip) sfxSource.PlayOneShot(combo4Clip);
+        }
+    }
+
     /// <summary>
-    /// Casts a short ray down from the collider’s center (using boxOffset)
-    /// and if it doesn’t hit the ground, applies significant downforce.
+    /// Casts a short ray down from the collider’s center and if it doesn’t hit ground, applies significant downforce.
     /// </summary>
     private void ApplySignificantDownforce()
     {
@@ -217,12 +255,24 @@ public class SkaterBotController : MonoBehaviour
                 trail.emitting = true;
             }
         }
-        float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, brakeTiltZ, driftTiltSpeed * Time.deltaTime);
-        pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+        float newZRotation = Mathf.MoveTowardsAngle(
+            pivotPointDrift.localEulerAngles.y,
+            brakeTiltZ,
+            driftTiltSpeed * Time.deltaTime
+        );
+        pivotPointDrift.localEulerAngles = new Vector3(
+            pivotPointDrift.localEulerAngles.x,
+            newZRotation,
+            pivotPointDrift.localEulerAngles.z
+        );
 
         pivotTiltZ = 0f;
         Vector3 currentRotation = pivotPoint.localEulerAngles;
-        pivotPoint.localEulerAngles = new Vector3(currentRotation.x, currentRotation.y, pivotTiltZ);
+        pivotPoint.localEulerAngles = new Vector3(
+            currentRotation.x,
+            currentRotation.y,
+            pivotTiltZ
+        );
     }
 
     private void HandleBraking()
@@ -232,18 +282,12 @@ public class SkaterBotController : MonoBehaviour
             state = State.Normal;
     }
 
-    // For ground alignment
-    [SerializeField] public Transform alignTransform;
-    Vector3 movementDirection;
     private void AlignWithGround()
     {
-        if (!IsGrounded || _coyoteTimer > 0)
-            return;
+        if (!IsGrounded || _coyoteTimer > 0) return;
 
         Ray ray = new Ray(transform.position + Vector3.up * alignmentOffset, Vector3.down);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, groundRayDistance, groundLayerMask))
+        if (Physics.Raycast(ray, out RaycastHit hit, groundRayDistance, groundLayerMask))
         {
             Vector3 groundNormal = hit.normal;
 
@@ -271,17 +315,25 @@ public class SkaterBotController : MonoBehaviour
     }
 
     /// <summary>
-    /// Handles the input buffering for initiating and executing tricks.
+    /// Handles input for tricks, drifting, braking, etc.
     /// </summary>
     private void HandleBufferInput()
     {
-        // Existing braking and drifting code…
+        // Braking
         if (brakingPressed)
         {
             if (!isDrifting)
             {
-                float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 90, driftTiltSpeed * Time.deltaTime);
-                pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+                float newZRotation = Mathf.MoveTowardsAngle(
+                    pivotPointDrift.localEulerAngles.y,
+                    90,
+                    driftTiltSpeed * Time.deltaTime
+                );
+                pivotPointDrift.localEulerAngles = new Vector3(
+                    pivotPointDrift.localEulerAngles.x,
+                    newZRotation,
+                    pivotPointDrift.localEulerAngles.z
+                );
             }
         }
         if (brakingPressed && !isDrifting && IsGrounded && state != State.Drifting)
@@ -297,7 +349,7 @@ public class SkaterBotController : MonoBehaviour
             state = State.Normal;
         }
 
-        // Handle drifting input.
+        // Drifting input
         if (driftingPressed && !isDrifting)
         {
             StartDrifting();
@@ -307,33 +359,32 @@ public class SkaterBotController : MonoBehaviour
             StopDrifting();
         }
 
-        // --- Check if the right mouse button is held ---
+        // Right Mouse Button -> Trick logic
         if (rmbPresssed)
         {
-            // Handle Trick Preparation and Execution only if RMB is held.
             if (!preparedForTrick && !trickOnCooldown && !isPerformingTrick)
             {
-                // Detect when the right stick is pressed down (e.g., y < -0.5)
+                // Check for "push right stick down" as a sign of preparing a trick
                 if (rightStickInput.y < -0.5f)
                 {
                     preparedForTrick = true;
                     animator.SetTrigger("PreparedForTrick");
                     Debug.Log("Prepared for Trick!");
+
                     if (trickPreparationCoroutine != null)
-                    {
                         StopCoroutine(trickPreparationCoroutine);
-                    }
+
                     trickPreparationCoroutine = StartCoroutine(TrickPreparationTimer());
                 }
             }
             else if (preparedForTrick && !isPerformingTrick)
             {
-                // Detect if the stick has been flicked in a direction
+                // Check if the stick has been flicked in a direction
                 if (rightStickInput.magnitude >= 0.5f && rightStickInput.y >= -0.5f)
                 {
                     if (rightStickInput.x > 0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
                     {
-                        // Right Flick - Kickflip
+                        // Right Flick = Kickflip
                         if (!isPerformingTrick)
                         {
                             PerformKickflip();
@@ -342,7 +393,7 @@ public class SkaterBotController : MonoBehaviour
                     }
                     else if (rightStickInput.x < -0.5f && Mathf.Abs(rightStickInput.y) < 0.5f)
                     {
-                        // Left Flick - Pop Shuv It
+                        // Left Flick = Pop Shuv It
                         if (!isPerformingTrick)
                         {
                             PerformPopShuvIt();
@@ -351,21 +402,18 @@ public class SkaterBotController : MonoBehaviour
                     }
                     else if (rightStickInput.y > 0.5f)
                     {
-                        // Up Flick - Ollie
+                        // Up Flick = Ollie
                         if (!isPerformingTrick && IsGrounded)
                         {
                             PerformOllie();
                             ResetTrickPreparation();
                         }
                     }
-                    else
-                    {
-                        // Ambiguous direction...
-                    }
+                    // else ambiguous
                 }
                 else if (rightStickInput.magnitude < 0.5f)
                 {
-                    // Stick returned to center without a flick; start cancel timer
+                    // Stick returned to center: start cancel timer
                     if (trickCancelCoroutine == null)
                     {
                         trickCancelCoroutine = StartCoroutine(TrickCancelTimer());
@@ -375,7 +423,7 @@ public class SkaterBotController : MonoBehaviour
         }
         else
         {
-            // If the right mouse button is not held, cancel any trick preparation.
+            // If RMB not held, cancel any trick preparation
             if (preparedForTrick)
             {
                 ResetTrickPreparation();
@@ -404,7 +452,6 @@ public class SkaterBotController : MonoBehaviour
             ResetTrickPreparation();
             Debug.Log("Trick preparation canceled due to stick returning to center.");
         }
-
         trickCancelCoroutine = null;
     }
 
@@ -429,32 +476,37 @@ public class SkaterBotController : MonoBehaviour
     private void CheckForGround()
     {
         Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
-        bool hitGround = Physics.CheckBox(boxCenter, boxHalfExtents, transform.rotation, groundLayerMask, QueryTriggerInteraction.Ignore);
+        bool hitGround = Physics.CheckBox(
+            boxCenter,
+            boxHalfExtents,
+            transform.rotation,
+            groundLayerMask,
+            QueryTriggerInteraction.Ignore
+        );
 
         DrawBox(boxCenter, boxHalfExtents * 2, hitGround ? Color.green : Color.red);
 
         if (hitGround && !isPerformingTrick)
         {
-            // Only trigger landing if we were airborne (hasLeftGround is true)
+            // Only trigger landing if we WERE airborne
             if (!IsGrounded && hasLeftGround)
             {
                 animator.SetTrigger("Landing");
 
                 // Optionally play a tail-slap or landing sound
-                // AUDIO: play landing/tail-slap
                 if (sfxSource != null && tailSlapClip != null)
                 {
                     sfxSource.PlayOneShot(tailSlapClip);
                 }
 
-                // Apply boost when landing after performing tricks
+                // Apply boost after performing tricks
                 if (trickCount > 0)
                 {
                     Vector3 boostDirection = rb.linearVelocity.normalized;
                     rb.linearVelocity += boostDirection * (boostAmount * trickCount);
                     currentBoost += boostAmount * trickCount;
                     currentBoost = Mathf.Clamp(currentBoost, 0f, maxBoost);
-                    trickCount = 0; // Reset trick count
+                    trickCount = 0;
                 }
             }
             IsGrounded = true;
@@ -467,9 +519,7 @@ public class SkaterBotController : MonoBehaviour
             {
                 _coyoteTimer += Time.deltaTime;
                 if (_coyoteTimer >= coyoteTimeThreshold)
-                {
                     IsGrounded = false;
-                }
             }
             if (!hitGround)
             {
@@ -509,20 +559,6 @@ public class SkaterBotController : MonoBehaviour
         Debug.DrawLine(p3, p7, color);
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = IsGrounded ? Color.green : Color.red;
-        Vector3 boxCenter = transform.position + transform.TransformDirection(boxOffset);
-        Gizmos.DrawWireCube(boxCenter, boxHalfExtents * 2);
-
-        if (alignTransform != null)
-        {
-            Gizmos.color = Color.blue;
-            Vector3 rayOrigin = alignTransform.position + Vector3.up * alignmentOffset;
-            Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * groundRayDistance);
-        }
-    }
-
     private bool CheckColliderGround(RaycastHit col)
     {
         return (Vector3.Dot(col.normal.normalized, Vector3.up) >= 0.65f);
@@ -533,9 +569,7 @@ public class SkaterBotController : MonoBehaviour
     /// </summary>
     private void StartTrickCooldown()
     {
-        if (trickOnCooldown)
-            return;
-
+        if (trickOnCooldown) return;
         StartCoroutine(TrickCooldownRoutine());
     }
 
@@ -577,6 +611,7 @@ public class SkaterBotController : MonoBehaviour
             rb.linearVelocity = new Vector3(clampedVelocity.x, rb.linearVelocity.y, clampedVelocity.z);
         }
 
+        // Decay boost
         if (currentBoost > 0f)
         {
             currentBoost -= boostDecayRate * Time.fixedDeltaTime;
@@ -597,14 +632,14 @@ public class SkaterBotController : MonoBehaviour
             Quaternion turnRotation = Quaternion.Euler(0f, turnAmount, 0f);
             rb.MoveRotation(rb.rotation * turnRotation);
 
-            // AUDIO: Example of playing a quick turn sound if you like
-            // (You could also check the magnitude of turnAmount for Turn1/Turn2/Turn3)
-            if (Mathf.Abs(turnAmount) > 1f) // arbitrary threshold
-            {
-                // e.g. sfxSource.PlayOneShot(turn1Clip);
-            }
+            // Optionally: Quick turn SFX if you'd like
+            // if (Mathf.Abs(turnAmount) > 1f && turn1Clip != null)
+            // {
+            //     sfxSource.PlayOneShot(turn1Clip);
+            // }
         }
 
+        // Non-drifting tilt
         if (!isDrifting)
         {
             foreach (TrailRenderer trail in driftTrails)
@@ -613,15 +648,28 @@ public class SkaterBotController : MonoBehaviour
             }
             float targetZRotation = Mathf.Lerp(10f, -10f, (inputMovement.x + 1f) / 2f);
             pivotTiltZ = Mathf.MoveTowards(pivotTiltZ, targetZRotation, tiltSpeed * Time.deltaTime);
-            pivotPoint.localEulerAngles = new Vector3(pivotPoint.localEulerAngles.x, pivotPoint.localEulerAngles.y, pivotTiltZ);
+            pivotPoint.localEulerAngles = new Vector3(
+                pivotPoint.localEulerAngles.x,
+                pivotPoint.localEulerAngles.y,
+                pivotTiltZ
+            );
 
             if (!brakingPressed)
             {
-                float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, 0, driftTiltSpeed * Time.deltaTime);
-                pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+                float newZRotation = Mathf.MoveTowardsAngle(
+                    pivotPointDrift.localEulerAngles.y,
+                    0,
+                    driftTiltSpeed * Time.deltaTime
+                );
+                pivotPointDrift.localEulerAngles = new Vector3(
+                    pivotPointDrift.localEulerAngles.x,
+                    newZRotation,
+                    pivotPointDrift.localEulerAngles.z
+                );
             }
         }
 
+        // Drifting tilt
         if (isDrifting)
         {
             if (IsGrounded)
@@ -635,8 +683,17 @@ public class SkaterBotController : MonoBehaviour
                     trail.emitting = true;
                 }
             }
-            float newZRotation = Mathf.MoveTowardsAngle(pivotPointDrift.localEulerAngles.y, driftTiltZ, driftTiltSpeed * Time.deltaTime);
-            pivotPointDrift.localEulerAngles = new Vector3(pivotPointDrift.localEulerAngles.x, newZRotation, pivotPointDrift.localEulerAngles.z);
+
+            float newZRotation = Mathf.MoveTowardsAngle(
+                pivotPointDrift.localEulerAngles.y,
+                driftTiltZ,
+                driftTiltSpeed * Time.deltaTime
+            );
+            pivotPointDrift.localEulerAngles = new Vector3(
+                pivotPointDrift.localEulerAngles.x,
+                newZRotation,
+                pivotPointDrift.localEulerAngles.z
+            );
         }
 
         if (!IsGrounded)
@@ -662,12 +719,6 @@ public class SkaterBotController : MonoBehaviour
         driftTiltZ = driftDirection > 0 ? 50f : -50f;
 
         driftTime = 0f;
-
-        // AUDIO: Start a "grind start" sound, or set a loop
-        if (sfxSource != null && grindStartClip != null)
-        {
-            sfxSource.PlayOneShot(grindStartClip);
-        }
     }
 
     private void StopDrifting()
@@ -689,8 +740,11 @@ public class SkaterBotController : MonoBehaviour
             trail.emitting = false;
         }
 
-        // AUDIO: If you had a looping grind sound, you could stop it here:
-        // if (sfxSource != null) sfxSource.Stop(); 
+        // If you want a "drift stop" or "grind start" SFX:
+        if (sfxSource != null && grindStartClip != null)
+        {
+            sfxSource.PlayOneShot(grindStartClip);
+        }
     }
 
     // Input Handlers
@@ -730,7 +784,6 @@ public class SkaterBotController : MonoBehaviour
     {
         brakingPressed = true;
     }
-
     private void OnBReleased(InputValue value)
     {
         brakingPressed = false;
@@ -741,7 +794,6 @@ public class SkaterBotController : MonoBehaviour
     {
         rmbPresssed = true;
     }
-
     private void OnRMBReleased(InputValue value)
     {
         rmbPresssed = false;
@@ -751,6 +803,10 @@ public class SkaterBotController : MonoBehaviour
     {
         return inputMovement.x;
     }
+
+    // ------------------------------------------------
+    //  TRICK METHODS
+    // ------------------------------------------------
 
     /// <summary>
     /// Executes an Ollie by applying an upward force.
@@ -767,11 +823,13 @@ public class SkaterBotController : MonoBehaviour
         animator.SetTrigger("Ollie");
         IsGrounded = false;
 
-        // AUDIO: Play Ollie sound
+        // If you want the Ollie also to use the combo system, call PlayComboClipBasedOnBoost();
+        // otherwise, just play a dedicated Ollie SFX:
         if (sfxSource != null && ollieClip != null)
         {
-            sfxSource.PlayOneShot(tailSlapClip);
+            sfxSource.PlayOneShot(ollieClip);
         }
+        // Or you could do: PlayComboClipBasedOnBoost();
 
         StartTrickCooldown();
 
@@ -791,11 +849,8 @@ public class SkaterBotController : MonoBehaviour
         animator.SetTrigger("Kickflip");
         IsGrounded = false;
 
-        // AUDIO: Example: Kickflip => combo1Clip
-        if (sfxSource != null && combo1Clip != null)
-        {
-            sfxSource.PlayOneShot(tailSlapClip);
-        }
+        // Instead of always playing tailSlapClip, let's do combos based on boost:
+        PlayComboClipBasedOnBoost();
 
         trickCount++;
         StartTrickCooldown();
@@ -816,11 +871,8 @@ public class SkaterBotController : MonoBehaviour
         animator.SetTrigger("PopShuvIt");
         IsGrounded = false;
 
-        // AUDIO: Example: PopShuvIt => combo2Clip
-        if (sfxSource != null && combo2Clip != null)
-        {
-            sfxSource.PlayOneShot(tailSlapClip);
-        }
+        // Again, use the combos based on boost:
+        PlayComboClipBasedOnBoost();
 
         trickCount++;
         StartTrickCooldown();

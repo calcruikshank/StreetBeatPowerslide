@@ -2284,8 +2284,10 @@ MonoBehaviour:
   mainThemeClip: {fileID: 8300000, guid: 24462fb7d89d5d0419f2bba850cc22ba, type: 3}
   ollieClip: {fileID: 8300000, guid: 2b2f7658465f7f746bb60c06a52854e8, type: 3}
   tailSlapClip: {fileID: 8300000, guid: d0fa58af8e059e04d8081771b4dffb74, type: 3}
-  combo1Clip: {fileID: 8300000, guid: 2048ad8c1153838408fa73858d72086a, type: 3}
-  combo2Clip: {fileID: 8300000, guid: a631c3622d8de2b48a541b3a1b23c278, type: 3}
+  combo1Clip: {fileID: 8300000, guid: a631c3622d8de2b48a541b3a1b23c278, type: 3}
+  combo2Clip: {fileID: 8300000, guid: 321bc6e1279f33b4cb665785cd29f530, type: 3}
+  combo3Clip: {fileID: 8300000, guid: ce7ccad705a637245abb4e97605a504e, type: 3}
+  combo4Clip: {fileID: 8300000, guid: c0b7256f4052b734cadbcae5803a8653, type: 3}
   grindStartClip: {fileID: 8300000, guid: 321bc6e1279f33b4cb665785cd29f530, type: 3}
   grindLoopClip: {fileID: 8300000, guid: ce7ccad705a637245abb4e97605a504e, type: 3}
   turn1Clip: {fileID: 8300000, guid: 4af88296ea9c00a4987518b241f7258a, type: 3}
