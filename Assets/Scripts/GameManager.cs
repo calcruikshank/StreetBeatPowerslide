@@ -12,4 +12,6 @@ public class GameManager : MonoBehaviour
         }
         instance = this;
     }
+    [SerializeField] public AudioSource sfxSource;      // For one-shot SFX (ollies, flips, etc.)
+    [SerializeField] public AudioSource musicSource;    // For background/looping audio (optional)
 }

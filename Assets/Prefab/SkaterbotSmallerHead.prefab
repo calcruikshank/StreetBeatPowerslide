@@ -2281,9 +2281,20 @@ MonoBehaviour:
   downforceRayMultiplier: 0.5
   brakingTurnSpeed: 300
   brakingTiltAngle: 90
+  mainThemeClip: {fileID: 8300000, guid: 24462fb7d89d5d0419f2bba850cc22ba, type: 3}
+  ollieClip: {fileID: 8300000, guid: 2b2f7658465f7f746bb60c06a52854e8, type: 3}
+  tailSlapClip: {fileID: 8300000, guid: d0fa58af8e059e04d8081771b4dffb74, type: 3}
+  combo1Clip: {fileID: 8300000, guid: 2048ad8c1153838408fa73858d72086a, type: 3}
+  combo2Clip: {fileID: 8300000, guid: a631c3622d8de2b48a541b3a1b23c278, type: 3}
+  grindStartClip: {fileID: 8300000, guid: 321bc6e1279f33b4cb665785cd29f530, type: 3}
+  grindLoopClip: {fileID: 8300000, guid: ce7ccad705a637245abb4e97605a504e, type: 3}
+  turn1Clip: {fileID: 8300000, guid: 4af88296ea9c00a4987518b241f7258a, type: 3}
+  turn2Clip: {fileID: 8300000, guid: 96176adee879ecb40b6153b6b5c4787e, type: 3}
+  turn3Clip: {fileID: 8300000, guid: 8059671a661f62b40ac9e8a72109cd25, type: 3}
   alignTransform: {fileID: 853803966856592571}
   driftingPressed: 0
   brakingPressed: 0
+  rmbPresssed: 0
 --- !u!54 &5605830709446707197
 Rigidbody:
   m_ObjectHideFlags: 0
